@@ -177,7 +177,7 @@ export function detectLanguage(filePath: string): Language | null {
 export function isParseableFile(filePath: string): boolean {
   if (isMinifiedFile(filePath)) return false;
   const lang = detectLanguage(filePath);
-  return lang === 'php' || lang === 'javascript' || lang === 'python' || lang === 'css' || lang === 'html';
+  return lang === 'php' || lang === 'javascript' || lang === 'typescript' || lang === 'python' || lang === 'css' || lang === 'html';
 }
 
 // ──────────────────────────────────────────────────────────────────────

@@ -61,6 +61,7 @@ export type EntityType = (typeof ENTITY_TYPES)[number];
 export const LANGUAGES = [
   'php',
   'javascript',
+  'typescript',
   'python',
   'css',
   'html',

@@ -743,7 +743,7 @@ function getChangedFiles(projectRoot: string, sinceCommit: string): FileChanges 
 // ──────────────────────────────────────────────────────────────────────
 
 function discoverFiles(projectRoot: string, config: ProjectMapConfig): string[] {
-  const patterns = ['**/*.php', '**/*.js', '**/*.mjs', '**/*.cjs'];
+  const patterns = ['**/*.php', '**/*.js', '**/*.mjs', '**/*.cjs', '**/*.jsx', '**/*.ts', '**/*.tsx', '**/*.mts', '**/*.cts', '**/*.py'];
   const ignore = config.analysis.exclude_patterns;
 
   const files = fg.sync(patterns, {

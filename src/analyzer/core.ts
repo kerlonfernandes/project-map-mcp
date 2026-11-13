@@ -18,6 +18,7 @@ import type { ProjectMapConfig, FileAnalysisResult } from '../shared/types.js';
 import { detectLanguage, isBinaryFile, isMinifiedFile, validatePath, validateFileSize } from '../shared/utils.js';
 import { parsePhpFile } from './parsers/php.js';
 import { parseJavaScriptFile } from './parsers/javascript.js';
+import { parseTypeScriptFile } from './parsers/typescript.js';
 import { parsePythonFile } from './parsers/python.js';
 import { detectLaravelPatterns } from './frameworks/laravel.js';
 import { detectExpressPatterns } from './frameworks/express.js';
@@ -45,7 +46,7 @@ export function analyzeFile(
   const language = detectLanguage(relativePath);
   if (!language) return null;
 
-  const PARSEABLE_LANGUAGES = new Set(['php', 'javascript', 'python', 'css', 'html']);
+  const PARSEABLE_LANGUAGES = new Set(['php', 'javascript', 'typescript', 'python', 'css', 'html']);
   if (!PARSEABLE_LANGUAGES.has(language)) return null;
 
   // SECURITY: validate path is within project root
@@ -78,6 +79,9 @@ export function analyzeFile(
       if (result && config.analysis.frameworks?.includes('express')) {
         detectExpressPatterns(result, content);
       }
+      break;
+    case 'typescript':
+      result = parseTypeScriptFile(relativePath, content);
       break;
     case 'python':
       result = parsePythonFile(relativePath, content);
