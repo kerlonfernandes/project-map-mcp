@@ -1,15 +1,15 @@
 /**
- * CLI entry point for Ondbay MCP.
+ * CLI entry point for Project Map MCP.
  *
  * Provides commands for project initialization, synchronization,
  * status checking, and search — independent of the MCP protocol.
  * Uses the same Application Services as the MCP adapter.
  *
  * Usage:
- *   ondbay init [path]       — Initialize a new project
- *   ondbay sync [--full]     — Synchronize (index) the project
- *   ondbay status            — Show project and snapshot status
- *   ondbay search <query>    — Search entities and knowledge
+ *   project-map init [path]       — Initialize a new project
+ *   project-map sync [--full]     — Synchronize (index) the project
+ *   project-map status            — Show project and snapshot status
+ *   project-map search <query>    — Search entities and knowledge
  *
  * Used by: end users via command line.
  */
@@ -22,7 +22,7 @@ import { createProjectWithRepository, findProjectByPath, findRepositoryByProject
 import { syncRepository } from '../services/sync.js';
 import { search } from '../services/search.js';
 import { loadConfig } from './config.js';
-import type { OndbayConfig } from '../shared/types.js';
+import type { ProjectMapConfig } from '../shared/types.js';
 
 const args = process.argv.slice(2);
 const command = args[0];
@@ -50,17 +50,17 @@ async function main(): Promise<void> {
 
 async function handleInit(targetPath?: string): Promise<void> {
   const projectRoot = path.resolve(targetPath ?? '.');
-  const ondbayDir = path.join(projectRoot, '.ondbay');
-  const dbPath = path.join(ondbayDir, 'knowledge.db');
-  const configPath = path.join(projectRoot, 'ondbay.config.json');
+  const project-mapDir = path.join(projectRoot, '.project-map');
+  const dbPath = path.join(project-mapDir, 'knowledge.db');
+  const configPath = path.join(projectRoot, 'project-map.config.json');
 
   if (fs.existsSync(dbPath)) {
     console.error(`Project already initialized at ${projectRoot}`);
     process.exit(1);
   }
 
-  // Create .ondbay directory
-  fs.mkdirSync(ondbayDir, { recursive: true });
+  // Create .project-map directory
+  fs.mkdirSync(project-mapDir, { recursive: true });
 
   // Create default config if not present
   if (!fs.existsSync(configPath)) {
@@ -82,7 +82,7 @@ async function handleInit(targetPath?: string): Promise<void> {
         parse_timeout_ms: 30000,
       },
       database: {
-        path: '.ondbay/knowledge.db',
+        path: '.project-map/knowledge.db',
         max_size_mb: 500,
         cache_size_mb: 64,
       },
@@ -136,27 +136,27 @@ async function handleInit(targetPath?: string): Promise<void> {
 
   closeDatabase(db);
 
-  // Add .ondbay to .gitignore if not already there
+  // Add .project-map to .gitignore if not already there
   const gitignorePath = path.join(projectRoot, '.gitignore');
   if (fs.existsSync(gitignorePath)) {
     const content = fs.readFileSync(gitignorePath, 'utf-8');
-    if (!content.includes('.ondbay')) {
-      fs.appendFileSync(gitignorePath, '\n# Ondbay MCP data\n.ondbay/\n');
+    if (!content.includes('.project-map')) {
+      fs.appendFileSync(gitignorePath, '\n# Project Map MCP data\n.project-map/\n');
     }
   }
 
-  console.log(`Ondbay initialized at ${projectRoot}`);
+  console.log(`Project Map initialized at ${projectRoot}`);
   console.log(`  Project ID: ${projectId}`);
   console.log(`  Repository ID: ${repositoryId}`);
   console.log(`  Database: ${dbPath}`);
   console.log(`  Config: ${configPath}`);
-  console.log('\nRun "ondbay sync" to index the project.');
+  console.log('\nRun "project-map sync" to index the project.');
 }
 
-function handleSync(full: boolean): void {
+async function handleSync(full: boolean): Promise<void> {
   const { db, repositoryId, config } = openProject();
 
-  const result = syncRepository(db, repositoryId, config, {
+  const result = await syncRepository(db, repositoryId, config, {
     action: full ? 'full' : 'incremental',
     force: false,
   });
@@ -166,10 +166,10 @@ function handleSync(full: boolean): void {
   console.log(JSON.stringify(result, null, 2));
 }
 
-function handleStatus(): void {
+async function handleStatus(): Promise<void> {
   const { db, repositoryId, config } = openProject();
 
-  const result = syncRepository(db, repositoryId, config, {
+  const result = await syncRepository(db, repositoryId, config, {
     action: 'status',
     force: false,
   });
@@ -181,7 +181,7 @@ function handleStatus(): void {
 
 function handleSearch(query: string): void {
   if (!query.trim()) {
-    console.error('Usage: ondbay search <query>');
+    console.error('Usage: project-map search <query>');
     process.exit(1);
   }
 
@@ -201,36 +201,36 @@ function handleSearch(query: string): void {
 
 function printHelp(): void {
   console.log(`
-Ondbay Project Intelligence MCP — CLI
+Project Map MCP — CLI
 
 Usage:
-  ondbay init [path]       Initialize a new project
-  ondbay sync [--full]     Synchronize (index) the project
-  ondbay status            Show project and snapshot status
-  ondbay search <query>    Search entities and knowledge
-  ondbay --help            Show this help
+  project-map init [path]       Initialize a new project
+  project-map sync [--full]     Synchronize (index) the project
+  project-map status            Show project and snapshot status
+  project-map search <query>    Search entities and knowledge
+  project-map --help            Show this help
 
 Environment:
-  ONDBAY_PROJECT_ROOT      Project root directory (default: cwd)
-  ONDBAY_DB_PATH           Database path (default: .ondbay/knowledge.db)
+  PROJECT_MAP_PROJECT_ROOT      Project root directory (default: cwd)
+  PROJECT_MAP_DB_PATH           Database path (default: .project-map/knowledge.db)
 `);
 }
 
 /**
- * Opens an existing Ondbay project from the current directory.
+ * Opens an existing Project Map project from the current directory.
  * Resolves config, database, and repository ID.
  */
 function openProject(): {
   db: ReturnType<typeof openDatabase>;
   repositoryId: string;
-  config: OndbayConfig;
+  config: ProjectMapConfig;
 } {
-  const projectRoot = process.env['ONDBAY_PROJECT_ROOT'] ?? process.cwd();
+  const projectRoot = process.env['PROJECT_MAP_PROJECT_ROOT'] ?? process.cwd();
   const config = loadConfig(projectRoot);
-  const dbPath = process.env['ONDBAY_DB_PATH'] ?? path.resolve(projectRoot, config.database.path);
+  const dbPath = process.env['PROJECT_MAP_DB_PATH'] ?? path.resolve(projectRoot, config.database.path);
 
   if (!fs.existsSync(dbPath)) {
-    console.error(`No Ondbay project found. Run "ondbay init" first.`);
+    console.error(`No Project Map project found. Run "project-map init" first.`);
     process.exit(1);
   }
 

@@ -14,7 +14,7 @@
 
 import fs from 'node:fs';
 
-import type { OndbayConfig, FileAnalysisResult } from '../shared/types.js';
+import type { ProjectMapConfig, FileAnalysisResult } from '../shared/types.js';
 import { detectLanguage, isBinaryFile, validatePath, validateFileSize } from '../shared/utils.js';
 import { parsePhpFile } from './parsers/php.js';
 import { parseJavaScriptFile } from './parsers/javascript.js';
@@ -34,7 +34,7 @@ import { detectExpressPatterns } from './frameworks/express.js';
 export function analyzeFile(
   relativePath: string,
   projectRoot: string,
-  config: OndbayConfig,
+  config: ProjectMapConfig,
 ): FileAnalysisResult | null {
   if (isBinaryFile(relativePath)) return null;
 

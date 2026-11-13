@@ -1,5 +1,5 @@
 /**
- * Application-wide constants for the Ondbay MCP server.
+ * Application-wide constants for the Project Map MCP server.
  *
  * All magic numbers and string literals live here. If a value appears
  * in more than one file, it belongs in this module.
@@ -12,7 +12,7 @@
 // ──────────────────────────────────────────────────────────────────────
 
 export const ANALYZER_VERSION = '1.0.0';
-export const MCP_SERVER_NAME = 'ondbay-mcp';
+export const MCP_SERVER_NAME = 'project-map-mcp';
 export const MCP_SERVER_VERSION = '1.0.0';
 
 // ──────────────────────────────────────────────────────────────────────

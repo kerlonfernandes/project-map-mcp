@@ -11,7 +11,7 @@ import type { Database } from 'better-sqlite3';
 
 import { manageSession } from '../../services/session.js';
 import { sanitizeInput } from '../../shared/utils.js';
-import type { OndbayConfig } from '../../shared/types.js';
+import type { ProjectMapConfig } from '../../shared/types.js';
 
 interface SessionArgs {
   action: 'checkpoint' | 'resume' | 'list' | 'close';
@@ -28,7 +28,7 @@ interface SessionArgs {
 export function handleSession(
   db: Database,
   repositoryId: string,
-  config: OndbayConfig,
+  config: ProjectMapConfig,
   args: SessionArgs,
 ) {
   const result = manageSession(db, repositoryId, config, {

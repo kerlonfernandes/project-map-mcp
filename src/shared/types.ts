@@ -1,5 +1,5 @@
 /**
- * Core type definitions for the Ondbay MCP knowledge model.
+ * Core type definitions for the Project Map MCP knowledge model.
  *
  * Every entity, relationship, evidence, and knowledge record in the system
  * conforms to these types. They mirror the SQLite schema and serve as the
@@ -500,7 +500,7 @@ export interface ResponseMeta {
 // Config
 // ──────────────────────────────────────────────────────────────────────
 
-export interface OndbayConfig {
+export interface ProjectMapConfig {
   project: {
     name: string;
     root: string;

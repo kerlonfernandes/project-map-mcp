@@ -7,9 +7,9 @@ import { openDatabase, closeDatabase } from '../../../src/repository/db.js';
 import { createProjectWithRepository } from '../../../src/repository/projects.js';
 import { manageSession } from '../../../src/services/session.js';
 import { SessionNotFoundError, ValidationError } from '../../../src/shared/errors.js';
-import type { OndbayConfig } from '../../../src/shared/types.js';
+import type { ProjectMapConfig } from '../../../src/shared/types.js';
 
-const TEST_CONFIG: OndbayConfig = {
+const TEST_CONFIG: ProjectMapConfig = {
   project: { name: 'test', root: '/tmp/test' },
   analysis: {
     languages: ['php', 'javascript'],

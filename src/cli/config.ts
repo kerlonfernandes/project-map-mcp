@@ -1,7 +1,7 @@
 /**
- * Configuration loader for the Ondbay MCP server.
+ * Configuration loader for the Project Map MCP server.
  *
- * Loads and merges project config from ondbay.config.json with
+ * Loads and merges project config from project-map.config.json with
  * sensible defaults. Resolves relative paths against the project root.
  *
  * Used by: cli/index.ts, src/index.ts.
@@ -10,9 +10,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import type { OndbayConfig } from '../shared/types.js';
+import type { ProjectMapConfig } from '../shared/types.js';
 
-const DEFAULT_CONFIG: OndbayConfig = {
+const DEFAULT_CONFIG: ProjectMapConfig = {
   project: {
     name: 'unknown',
     root: '.',
@@ -33,7 +33,7 @@ const DEFAULT_CONFIG: OndbayConfig = {
     parse_timeout_ms: 30000,
   },
   database: {
-    path: '.ondbay/knowledge.db',
+    path: '.project-map/knowledge.db',
     max_size_mb: 500,
     cache_size_mb: 64,
   },
@@ -62,23 +62,23 @@ const DEFAULT_CONFIG: OndbayConfig = {
 };
 
 /**
- * Loads project configuration from ondbay.config.json.
+ * Loads project configuration from project-map.config.json.
  * Falls back to defaults for any missing values.
  *
  * @param projectRoot - Absolute path to the project root.
  * @returns Merged configuration.
  */
-export function loadConfig(projectRoot: string): OndbayConfig {
-  const configPath = path.join(projectRoot, 'ondbay.config.json');
+export function loadConfig(projectRoot: string): ProjectMapConfig {
+  const configPath = path.join(projectRoot, 'project-map.config.json');
 
-  let userConfig: Partial<OndbayConfig> = {};
+  let userConfig: Partial<ProjectMapConfig> = {};
   if (fs.existsSync(configPath)) {
     const raw = fs.readFileSync(configPath, 'utf-8');
-    userConfig = JSON.parse(raw) as Partial<OndbayConfig>;
+    userConfig = JSON.parse(raw) as Partial<ProjectMapConfig>;
   }
 
   // Deep merge user config over defaults
-  const merged: OndbayConfig = {
+  const merged: ProjectMapConfig = {
     project: {
       ...DEFAULT_CONFIG.project,
       ...userConfig.project,

@@ -10,7 +10,7 @@
 import type { Database } from 'better-sqlite3';
 
 import { syncRepository } from '../../services/sync.js';
-import type { OndbayConfig } from '../../shared/types.js';
+import type { ProjectMapConfig } from '../../shared/types.js';
 
 interface SyncArgs {
   action: 'status' | 'incremental' | 'full' | 'analyze_file' | 'analyze_schema';
@@ -25,13 +25,13 @@ interface SyncArgs {
   force?: boolean;
 }
 
-export function handleSync(
+export async function handleSync(
   db: Database,
   repositoryId: string,
-  config: OndbayConfig,
+  config: ProjectMapConfig,
   args: SyncArgs,
 ) {
-  const result = syncRepository(db, repositoryId, config, {
+  const result = await syncRepository(db, repositoryId, config, {
     action: args.action,
     path: args.path,
     connection: args.connection,

@@ -62,7 +62,7 @@ describe('validatePath', () => {
   let tmpDir: string;
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ondbay-test-'));
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'project-map-test-'));
   });
 
   afterEach(() => {

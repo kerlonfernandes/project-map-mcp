@@ -1,12 +1,12 @@
 /**
- * Main entry point for the Ondbay MCP server.
+ * Main entry point for the Project Map MCP server.
  *
  * Reads environment variables, loads configuration, opens the database,
  * and starts the MCP server on STDIO transport.
  *
  * Environment variables:
- *   ONDBAY_PROJECT_ROOT — Path to the project to analyze (required)
- *   ONDBAY_DB_PATH      — Path to the SQLite database (optional)
+ *   PROJECT_MAP_PROJECT_ROOT — Path to the project to analyze (required)
+ *   PROJECT_MAP_DB_PATH      — Path to the SQLite database (optional)
  *
  * Used by: AI clients (Claude Desktop, Cursor, etc.) via STDIO.
  */
@@ -20,9 +20,9 @@ import { startServer } from './adapter/server.js';
 import { loadConfig } from './cli/config.js';
 
 async function main(): Promise<void> {
-  const projectRoot = process.env['ONDBAY_PROJECT_ROOT'];
+  const projectRoot = process.env['PROJECT_MAP_PROJECT_ROOT'];
   if (!projectRoot) {
-    console.error('ONDBAY_PROJECT_ROOT environment variable is required');
+    console.error('PROJECT_MAP_PROJECT_ROOT environment variable is required');
     process.exit(1);
   }
 
@@ -33,7 +33,7 @@ async function main(): Promise<void> {
   }
 
   const config = loadConfig(resolvedRoot);
-  const dbPath = process.env['ONDBAY_DB_PATH']
+  const dbPath = process.env['PROJECT_MAP_DB_PATH']
     ?? path.resolve(resolvedRoot, config.database.path);
 
   const db = openDatabase(dbPath);

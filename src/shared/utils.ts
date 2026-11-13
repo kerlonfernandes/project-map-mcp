@@ -1,5 +1,5 @@
 /**
- * Utility functions shared across the Ondbay MCP server.
+ * Utility functions shared across the Project Map MCP server.
  *
  * Pure functions only — no state, no I/O, no side effects.
  * Every function here must be independently testable.

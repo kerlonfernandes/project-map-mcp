@@ -23,7 +23,7 @@ import { logAudit } from '../repository/audit.js';
 import { checkForDuplicates } from '../domain/knowledge.js';
 import { KnowledgeNotFoundError, ValidationError } from '../shared/errors.js';
 import { hashParams } from '../shared/utils.js';
-import type { OndbayConfig, KnowledgeType, KnowledgeOrigin, ValidationStatus, SourceKind } from '../shared/types.js';
+import type { ProjectMapConfig, KnowledgeType, KnowledgeOrigin, ValidationStatus, SourceKind } from '../shared/types.js';
 
 interface RecordInput {
   action: 'create' | 'update' | 'validate' | 'invalidate' | 'dispute';
@@ -49,7 +49,7 @@ interface RecordInput {
 export function manageRecord(
   db: Database,
   repositoryId: string,
-  _config: OndbayConfig,
+  _config: ProjectMapConfig,
   input: RecordInput,
 ): Record<string, unknown> {
   const startTime = Date.now();

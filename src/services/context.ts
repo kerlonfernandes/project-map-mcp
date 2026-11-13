@@ -20,6 +20,7 @@ import { findOutgoingEdges, findIncomingEdges } from '../repository/graph.js';
 import { findKnowledgeByEntityId } from '../repository/knowledge.js';
 import { findEvidenceByPath } from '../repository/evidence.js';
 import { findLatestSnapshot } from '../repository/snapshots.js';
+import { getCache, setCache } from '../repository/cache.js';
 import { estimateTokens } from '../shared/utils.js';
 import { PURPOSE_WEIGHTS, RESERVED_META_TOKENS } from '../shared/constants.js';
 import type { DepthLevel, PurposeMode, EntityRecord } from '../shared/types.js';
@@ -53,6 +54,17 @@ export function getContext(
       error: 'No snapshot available. Run sync first.',
       meta: { tokens_used: 0 },
     };
+  }
+
+  // Session cache: return cached response if available
+  const cacheKey = `context:${input.target}:${input.depth}:${input.purpose}:${input.token_budget}`;
+  if (input.session_id) {
+    const cached = getCache(db, input.session_id, cacheKey);
+    if (cached && cached.snapshot_id === snapshot.id) {
+      const cachedResponse = JSON.parse(cached.content) as Record<string, unknown>;
+      (cachedResponse.meta as Record<string, unknown>).cached = true;
+      return cachedResponse;
+    }
   }
 
   const entities = resolveTarget(db, repositoryId, input.target);
@@ -277,8 +289,9 @@ export function getContext(
   }
 
   // ── Meta (always present) ─────────────────────────────────────────
+  const totalTokensUsed = tokensUsed + RESERVED_META_TOKENS;
   response.meta = {
-    tokens_used: tokensUsed + RESERVED_META_TOKENS,
+    tokens_used: totalTokensUsed,
     token_budget: input.token_budget,
     depth: input.depth,
     depth_effective: input.depth,
@@ -288,6 +301,12 @@ export function getContext(
     cached: false,
     truncated_categories: truncatedCategories.length > 0 ? truncatedCategories : undefined,
   };
+
+  // Session cache: store response for future delta
+  if (input.session_id) {
+    const serialized = JSON.stringify(response);
+    setCache(db, input.session_id, cacheKey, serialized, totalTokensUsed, snapshot.id);
+  }
 
   return response;
 }

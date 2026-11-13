@@ -79,7 +79,7 @@ describe('openDatabase', () => {
       .prepare('SELECT MAX(version) as v FROM schema_version')
       .get() as { v: number };
 
-    expect(version.v).toBe(2);
+    expect(version.v).toBe(3);
   });
 
   it('should be idempotent (running twice should not fail)', () => {

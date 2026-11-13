@@ -11,7 +11,7 @@ import type { Database } from 'better-sqlite3';
 
 import { manageRecord } from '../../services/record.js';
 import { sanitizeInput } from '../../shared/utils.js';
-import type { OndbayConfig } from '../../shared/types.js';
+import type { ProjectMapConfig } from '../../shared/types.js';
 
 interface RecordArgs {
   action: 'create' | 'update' | 'validate' | 'invalidate' | 'dispute';
@@ -34,7 +34,7 @@ interface RecordArgs {
 export function handleRecord(
   db: Database,
   repositoryId: string,
-  config: OndbayConfig,
+  config: ProjectMapConfig,
   args: RecordArgs,
 ) {
   const result = manageRecord(db, repositoryId, config, {

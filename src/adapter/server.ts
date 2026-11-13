@@ -17,8 +17,8 @@ import type { Database } from 'better-sqlite3';
 import { z } from 'zod';
 
 import { MCP_SERVER_NAME, MCP_SERVER_VERSION } from '../shared/constants.js';
-import { OndbayError, ValidationError, RateLimitError } from '../shared/errors.js';
-import type { OndbayConfig } from '../shared/types.js';
+import { Project MapError, ValidationError, RateLimitError } from '../shared/errors.js';
+import type { ProjectMapConfig } from '../shared/types.js';
 
 import { handleGetContext } from './tools/get-context.js';
 import { handleSearch } from './tools/search.js';
@@ -57,7 +57,7 @@ function checkRateLimit(state: RateLimiterState): void {
 
 export interface ServerDependencies {
   db: Database;
-  config: OndbayConfig;
+  config: ProjectMapConfig;
   repositoryId: string;
 }
 
@@ -85,7 +85,7 @@ export function createMcpServer(deps: ServerDependencies): McpServer {
 
   /**
    * Wraps a tool handler with rate limiting and error handling.
-   * Catches OndbayError and returns safe JSON-RPC error responses.
+   * Catches Project MapError and returns safe JSON-RPC error responses.
    */
   function withGuards<T>(
     handler: () => T,
@@ -109,7 +109,7 @@ export function createMcpServer(deps: ServerDependencies): McpServer {
           isError: true,
         };
       }
-      if (error instanceof OndbayError) {
+      if (error instanceof Project MapError) {
         return {
           content: [{ type: 'text' as const, text: JSON.stringify({ error: error.message, code: error.code }) }],
           isError: true,

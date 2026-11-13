@@ -16,7 +16,7 @@ import { execSync } from 'node:child_process';
 import path from 'node:path';
 import fg from 'fast-glob';
 
-import type { OndbayConfig, FileAnalysisResult } from '../shared/types.js';
+import type { ProjectMapConfig, FileAnalysisResult } from '../shared/types.js';
 import {
   validatePath,
   isParseableFile,
@@ -31,6 +31,9 @@ import { countKnowledgeByValidity, markKnowledgeStaleByEvidence } from '../repos
 import { invalidateCacheBySnapshot } from '../repository/cache.js';
 import { logAudit } from '../repository/audit.js';
 import { analyzeFile } from '../analyzer/core.js';
+import { detectConventions } from '../domain/conventions.js';
+import { analyzeSchema, parseMigrationSql } from '../analyzer/mysql.js';
+import { reconcile, shouldReconcile } from '../domain/reconciliation.js';
 
 interface SyncInput {
   action: 'status' | 'incremental' | 'full' | 'analyze_file' | 'analyze_schema';
@@ -49,12 +52,12 @@ interface SyncInput {
  * Main entry point for all sync operations.
  * Routes to the appropriate handler based on the action.
  */
-export function syncRepository(
+export async function syncRepository(
   db: Database,
   repositoryId: string,
-  config: OndbayConfig,
+  config: ProjectMapConfig,
   input: SyncInput,
-): Record<string, unknown> {
+): Promise<Record<string, unknown>> {
   switch (input.action) {
     case 'status':
       return getSyncStatus(db, repositoryId, config);
@@ -65,7 +68,7 @@ export function syncRepository(
     case 'analyze_file':
       return analyzeSpecificFile(db, repositoryId, config, input.path!);
     case 'analyze_schema':
-      return { error: 'MySQL schema analysis not yet implemented (Phase 3)' };
+      return runSchemaAnalysis(db, repositoryId, config, input.connection);
   }
 }
 
@@ -76,7 +79,7 @@ export function syncRepository(
 function getSyncStatus(
   db: Database,
   repositoryId: string,
-  config: OndbayConfig,
+  config: ProjectMapConfig,
 ): Record<string, unknown> {
   const projectRoot = config.project.root;
   const latestSnapshot = findLatestSnapshot(db, repositoryId);
@@ -132,7 +135,7 @@ function getSyncStatus(
 function runFullSync(
   db: Database,
   repositoryId: string,
-  config: OndbayConfig,
+  config: ProjectMapConfig,
 ): Record<string, unknown> {
   const startTime = Date.now();
   const projectRoot = config.project.root;
@@ -236,11 +239,19 @@ function runFullSync(
     error_message: errors.length > 0 ? errors.join('\n') : undefined,
   });
 
+  const conventionsFound = detectConventions(db, repositoryId, snapshotId);
+
+  // Reconciliation: run every N snapshots
+  let reconciliationResult: Record<string, unknown> | undefined;
+  if (shouldReconcile(db, repositoryId, config.sync.reconciliation_interval)) {
+    reconciliationResult = { ...reconcile(db, repositoryId) };
+  }
+
   logAudit(db, {
     operation: 'sync_full',
     tool_name: 'sync',
     parameters_hash: hashParams({ action: 'full' }),
-    result_summary: `${filesAnalyzed}/${files.length} files, ${totalEntities} entities, ${totalEdges} edges`,
+    result_summary: `${filesAnalyzed}/${files.length} files, ${totalEntities} entities, ${totalEdges} edges, ${conventionsFound} conventions`,
     entities_affected: totalEntities,
     duration_ms: durationMs,
   });
@@ -252,6 +263,8 @@ function runFullSync(
     files_total: files.length,
     entities_found: totalEntities,
     edges_found: totalEdges,
+    conventions_found: conventionsFound,
+    reconciliation: reconciliationResult,
     duration_ms: durationMs,
     errors: errors.length > 0 ? errors : undefined,
     meta: { tokens_used: 0 },
@@ -264,7 +277,7 @@ function runFullSync(
 function runIncrementalSync(
   db: Database,
   repositoryId: string,
-  config: OndbayConfig,
+  config: ProjectMapConfig,
 ): Record<string, unknown> {
   const latestSnapshot = findLatestSnapshot(db, repositoryId);
 
@@ -426,7 +439,7 @@ function runIncrementalSync(
 function analyzeSpecificFile(
   db: Database,
   repositoryId: string,
-  config: OndbayConfig,
+  config: ProjectMapConfig,
   filePath: string,
 ): Record<string, unknown> {
   const projectRoot = config.project.root;
@@ -654,7 +667,7 @@ function getChangedFiles(projectRoot: string, sinceCommit: string): FileChanges 
 // File Discovery
 // ──────────────────────────────────────────────────────────────────────
 
-function discoverFiles(projectRoot: string, config: OndbayConfig): string[] {
+function discoverFiles(projectRoot: string, config: ProjectMapConfig): string[] {
   const patterns = ['**/*.php', '**/*.js', '**/*.mjs', '**/*.cjs'];
   const ignore = config.analysis.exclude_patterns;
 
@@ -669,4 +682,197 @@ function discoverFiles(projectRoot: string, config: OndbayConfig): string[] {
   });
 
   return files.filter((f) => !isBinaryFile(f)).slice(0, config.analysis.max_files_per_sync);
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// MySQL Schema Analysis
+// ──────────────────────────────────────────────────────────────────────
+
+async function runSchemaAnalysis(
+  db: Database,
+  repositoryId: string,
+  config: ProjectMapConfig,
+  connection?: SyncInput['connection'],
+): Promise<Record<string, unknown>> {
+  const snapshotId = createSnapshot(db, { repository_id: repositoryId });
+  const errors: string[] = [];
+  let totalEntities = 0;
+  let totalEdges = 0;
+  let totalTables = 0;
+
+  try {
+    // Source 1: Parse migration SQL files from the repository
+    const projectRoot = config.project.root;
+    const migrationPatterns = [
+      'database/migrations/**/*.sql',
+      'migrations/**/*.sql',
+      'db/migrations/**/*.sql',
+    ];
+
+    const migrationFiles = fg.sync(migrationPatterns, {
+      cwd: projectRoot,
+      absolute: false,
+      onlyFiles: true,
+      dot: false,
+      followSymbolicLinks: false,
+    });
+
+    for (const relPath of migrationFiles) {
+      try { validatePath(relPath, projectRoot); } catch { continue; }
+
+      try {
+        const fs = await import('node:fs');
+        const content = fs.readFileSync(path.join(projectRoot, relPath), 'utf-8');
+        const result = parseMigrationSql(relPath, content);
+
+        for (const entity of result.entities) {
+          upsertEntity(db, {
+            repository_id: repositoryId,
+            entity_type: entity.entity_type,
+            scope: entity.scope,
+            qualified_name: entity.qualified_name,
+            display_name: entity.display_name,
+            path: entity.path,
+            line_start: entity.line_start,
+            line_end: entity.line_end,
+            language: entity.language,
+            signature: entity.signature,
+            metadata: entity.metadata,
+            snapshot_id: snapshotId,
+          });
+          totalEntities++;
+        }
+
+        for (const edge of result.edges) {
+          const sourceEntity = db.prepare(
+            'SELECT id FROM entities WHERE repository_id = ? AND qualified_name = ?',
+          ).get(repositoryId, edge.source_qualified_name) as { id: string } | undefined;
+          const targetEntity = db.prepare(
+            'SELECT id FROM entities WHERE repository_id = ? AND qualified_name = ?',
+          ).get(repositoryId, edge.target_qualified_name) as { id: string } | undefined;
+
+          if (sourceEntity && targetEntity) {
+            upsertEdge(db, {
+              repository_id: repositoryId,
+              source_id: sourceEntity.id,
+              target_id: targetEntity.id,
+              edge_type: edge.edge_type,
+              weight: edge.weight,
+              resolution_status: edge.resolution_status,
+              snapshot_id: snapshotId,
+            });
+            totalEdges++;
+          }
+        }
+
+        for (const ev of result.evidence) {
+          createEvidence(db, {
+            repository_id: repositoryId,
+            source_kind: ev.source_kind,
+            path: ev.path,
+            line_start: ev.line_start,
+            line_end: ev.line_end,
+            excerpt: ev.excerpt,
+            snapshot_id: snapshotId,
+          });
+        }
+
+        errors.push(...result.errors);
+      } catch (err) {
+        errors.push(`Failed to parse ${relPath}: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+
+    const tablesFromMigrations = db.prepare(
+      "SELECT COUNT(*) as count FROM entities WHERE repository_id = ? AND entity_type = 'table'",
+    ).get(repositoryId) as { count: number };
+    totalTables += tablesFromMigrations.count;
+
+    // Source 2: Live MySQL connection (optional)
+    if (connection) {
+      const schemaResult = await analyzeSchema(connection, config);
+
+      for (const entity of schemaResult.entities) {
+        upsertEntity(db, {
+          repository_id: repositoryId,
+          entity_type: entity.entity_type,
+          scope: entity.scope,
+          qualified_name: entity.qualified_name,
+          display_name: entity.display_name,
+          path: entity.path,
+          language: entity.language,
+          metadata: entity.metadata,
+          snapshot_id: snapshotId,
+        });
+        totalEntities++;
+      }
+
+      for (const edge of schemaResult.edges) {
+        const sourceEntity = db.prepare(
+          'SELECT id FROM entities WHERE repository_id = ? AND qualified_name = ?',
+        ).get(repositoryId, edge.source_qualified_name) as { id: string } | undefined;
+        const targetEntity = db.prepare(
+          'SELECT id FROM entities WHERE repository_id = ? AND qualified_name = ?',
+        ).get(repositoryId, edge.target_qualified_name) as { id: string } | undefined;
+
+        if (sourceEntity && targetEntity) {
+          upsertEdge(db, {
+            repository_id: repositoryId,
+            source_id: sourceEntity.id,
+            target_id: targetEntity.id,
+            edge_type: edge.edge_type,
+            weight: edge.weight,
+            resolution_status: edge.resolution_status,
+            snapshot_id: snapshotId,
+          });
+          totalEdges++;
+        }
+      }
+
+      for (const ev of schemaResult.evidence) {
+        createEvidence(db, {
+          repository_id: repositoryId,
+          source_kind: ev.source_kind,
+          path: ev.path,
+          line_start: ev.line_start,
+          line_end: ev.line_end,
+          excerpt: ev.excerpt,
+          snapshot_id: snapshotId,
+        });
+      }
+
+      totalTables += schemaResult.tables_found;
+      errors.push(...schemaResult.errors);
+    }
+
+    updateSnapshot(db, snapshotId, {
+      status: 'completed',
+      entities_found: totalEntities,
+      edges_found: totalEdges,
+    });
+
+    logAudit(db, {
+      operation: 'sync_schema',
+      tool_name: 'sync',
+      parameters_hash: hashParams({ action: 'analyze_schema', connection: !!connection }),
+      result_summary: `Schema analysis: ${totalTables} tables, ${totalEntities} entities, ${totalEdges} edges`,
+      entities_affected: totalEntities,
+    });
+
+    return {
+      snapshot_id: snapshotId,
+      tables_found: totalTables,
+      entities_found: totalEntities,
+      edges_found: totalEdges,
+      migration_files_parsed: migrationFiles.length,
+      live_connection: !!connection,
+      errors,
+    };
+  } catch (error) {
+    updateSnapshot(db, snapshotId, { status: 'failed' });
+    return {
+      error: `Schema analysis failed: ${error instanceof Error ? error.message : String(error)}`,
+      snapshot_id: snapshotId,
+    };
+  }
 }

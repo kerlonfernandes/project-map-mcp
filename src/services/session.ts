@@ -21,7 +21,7 @@ import {
 import { logAudit } from '../repository/audit.js';
 import { SessionNotFoundError, ValidationError } from '../shared/errors.js';
 import { hashParams, sanitizeInput } from '../shared/utils.js';
-import type { OndbayConfig } from '../shared/types.js';
+import type { ProjectMapConfig } from '../shared/types.js';
 
 interface SessionServiceInput {
   action: 'checkpoint' | 'resume' | 'list' | 'close';
@@ -41,7 +41,7 @@ interface SessionServiceInput {
 export function manageSession(
   db: Database,
   repositoryId: string,
-  _config: OndbayConfig,
+  _config: ProjectMapConfig,
   input: SessionServiceInput,
 ): Record<string, unknown> {
   const startTime = Date.now();
