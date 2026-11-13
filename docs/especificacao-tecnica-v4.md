@@ -1,6 +1,6 @@
 # Project Map MCP — Especificação Técnica v4.0
 
-Nov 13, 2026 · @Kerlon Santana Fernandes
+Nov 13, 2026
 
 **Status:** Especificação definitiva — referência para implementação\
 **Substitui:** v1.0, v2.0, v3.0

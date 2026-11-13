@@ -9,7 +9,7 @@
  * - $v->insert('partial')                    → edge `renders`
  * - $v->layout('layout')                     → edge `renders`
  *
- * ParceladoUSA uses a custom System\Plates\Engine (wrapping League\Plates)
+ * Supports projects using a custom System\Plates\Engine (wrapping League\Plates)
  * where each module has a theme constant (e.g. AUDITTHEME) pointing to a
  * template directory.
  *

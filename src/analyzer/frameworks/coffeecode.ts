@@ -7,8 +7,8 @@
  * - $router->namespace('Modules\X\Controllers')->group("module")
  * - $router->get|post|put|delete("/path", "Controller:method", "route.name")
  *
- * This is the router used by the ParceladoUSA monorepo: each module has a
- * routes.php that declares its controller mappings via CoffeeCode\Router.
+ * Supports projects where each module has a routes.php that declares its
+ * controller mappings via CoffeeCode\Router.
  *
  * Applied AFTER the PHP parser for route files in CoffeeCode projects.
  *

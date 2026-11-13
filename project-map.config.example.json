@@ -1,5 +1,4 @@
 {
-  "$schema": "./config-schema.json",
   "project": {
     "name": "my-project",
     "root": "."

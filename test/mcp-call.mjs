@@ -1,13 +1,15 @@
 /**
- * CLI wrapper to call any Ondbay MCP tool from the terminal.
+ * CLI wrapper to call any Project Map MCP tool from the terminal.
  * Usage: node test/mcp-call.mjs <tool_name> '<json_arguments>'
  *        node test/mcp-call.mjs --list
  */
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
 
-const PROJECT_ROOT = '/home/kerlon/Projetos/mcp-project';
+const PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const [toolName, argsJson] = process.argv.slice(2);
 
 if (!toolName) {
@@ -21,7 +23,7 @@ async function main() {
     command: 'node',
     args: ['dist/index.js'],
     cwd: PROJECT_ROOT,
-    env: { ...process.env, ONDBAY_PROJECT_ROOT: PROJECT_ROOT },
+    env: { ...process.env, PMAP_PROJECT_ROOT: PROJECT_ROOT },
   });
 
   const client = new Client({ name: 'cli-caller', version: '1.0.0' });
