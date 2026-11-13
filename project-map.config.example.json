@@ -22,7 +22,7 @@
     "parse_timeout_ms": 30000
   },
   "database": {
-    "path": ".ondbay/knowledge.db",
+    "path": ".project-map/knowledge.db",
     "max_size_mb": 500,
     "cache_size_mb": 64
   },

@@ -35,7 +35,7 @@ export function parseJavaScriptFile(
   content: string,
 ): FileAnalysisResult {
   const parser = new Parser();
-  parser.setLanguage(JsLanguage as unknown as Parser.Language);
+  parser.setLanguage(JsLanguage);
 
   const tree = parser.parse(content);
   const entities: ParsedEntity[] = [];

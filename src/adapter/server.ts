@@ -17,7 +17,7 @@ import type { Database } from 'better-sqlite3';
 import { z } from 'zod';
 
 import { MCP_SERVER_NAME, MCP_SERVER_VERSION } from '../shared/constants.js';
-import { Project MapError, ValidationError, RateLimitError } from '../shared/errors.js';
+import { ProjectMapError, ValidationError, RateLimitError } from '../shared/errors.js';
 import type { ProjectMapConfig } from '../shared/types.js';
 
 import { handleGetContext } from './tools/get-context.js';
@@ -27,6 +27,7 @@ import { handleImpact } from './tools/impact.js';
 import { handleRecord } from './tools/record.js';
 import { handleSync } from './tools/sync.js';
 import { handleSession } from './tools/session.js';
+import { handleExport } from './tools/export.js';
 
 // ──────────────────────────────────────────────────────────────────────
 // Rate Limiter (in-memory, per-process)
@@ -59,6 +60,7 @@ export interface ServerDependencies {
   db: Database;
   config: ProjectMapConfig;
   repositoryId: string;
+  dbPath?: string;
 }
 
 /**
@@ -85,7 +87,7 @@ export function createMcpServer(deps: ServerDependencies): McpServer {
 
   /**
    * Wraps a tool handler with rate limiting and error handling.
-   * Catches Project MapError and returns safe JSON-RPC error responses.
+   * Catches ProjectMapError and returns safe JSON-RPC error responses.
    */
   function withGuards<T>(
     handler: () => T,
@@ -109,7 +111,7 @@ export function createMcpServer(deps: ServerDependencies): McpServer {
           isError: true,
         };
       }
-      if (error instanceof Project MapError) {
+      if (error instanceof ProjectMapError) {
         return {
           content: [{ type: 'text' as const, text: JSON.stringify({ error: error.message, code: error.code }) }],
           isError: true,
@@ -245,6 +247,17 @@ export function createMcpServer(deps: ServerDependencies): McpServer {
       session_id: z.string().optional().describe('Session ID to resume or close (required for resume/close)'),
     },
     (args) => withGuards(() => handleSession(deps.db, deps.repositoryId, deps.config, args)),
+  );
+
+  server.tool(
+    'export',
+    'Manages portable database sharing. Actions: export (create a shareable .pmap.db file), import (load a shared database), list (show available exports). Enables team members to share indexed project knowledge without re-analyzing.',
+    {
+      action: z.enum(['export', 'import', 'list']).describe('Operation: export (create shareable file), import (load shared DB), list (show exports)'),
+      label: z.string().optional().describe('Human-readable label for the export (e.g., "sprint-42-complete"). Used in filename.'),
+      path: z.string().optional().describe('Path to the .pmap.db file to import (required for import action)'),
+    },
+    (args) => withGuards(() => handleExport(deps.db, deps.repositoryId, deps.config, args, deps.dbPath ?? '')),
   );
 
   return server;

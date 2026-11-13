@@ -478,6 +478,21 @@ export interface SyncInput {
   force?: boolean;
 }
 
+export interface ExportInput {
+  action: 'export' | 'import' | 'list';
+  label?: string;
+  path?: string;
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Database Metadata (stored in db_metadata table)
+// ──────────────────────────────────────────────────────────────────────
+
+export interface DbMetadataRecord {
+  key: string;
+  value: string;
+}
+
 // ──────────────────────────────────────────────────────────────────────
 // Response Meta (included in every tool response)
 // ──────────────────────────────────────────────────────────────────────

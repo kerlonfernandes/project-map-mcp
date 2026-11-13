@@ -15,7 +15,11 @@ import path from 'node:path';
 import fs from 'node:fs';
 
 import { openDatabase, closeDatabase } from './repository/db.js';
-import { findProjectByPath, findRepositoryByProjectId, createProjectWithRepository } from './repository/projects.js';
+import {
+  findFirstProject,
+  findRepositoryByProjectId,
+  createProjectWithRepository,
+} from './repository/projects.js';
 import { startServer } from './adapter/server.js';
 import { loadConfig } from './cli/config.js';
 
@@ -38,8 +42,9 @@ async function main(): Promise<void> {
 
   const db = openDatabase(dbPath);
 
-  // Auto-initialize project if not yet in the database
-  let project = findProjectByPath(db, resolvedRoot);
+  // Auto-initialize project if not yet in the database.
+  // The DB stores '.' as root_path — paths resolve at runtime.
+  let project = findFirstProject(db);
   if (!project) {
     const { projectId } = createProjectWithRepository(
       db,
@@ -47,7 +52,14 @@ async function main(): Promise<void> {
       resolvedRoot,
       resolvedRoot,
     );
-    project = { id: projectId, name: path.basename(resolvedRoot), root_path: resolvedRoot, created_at: '', updated_at: '', config_json: '{}' };
+    project = {
+      id: projectId,
+      name: path.basename(resolvedRoot),
+      root_path: '.',
+      created_at: '',
+      updated_at: '',
+      config_json: '{}',
+    };
   }
 
   const repo = findRepositoryByProjectId(db, project.id);
@@ -65,7 +77,7 @@ async function main(): Promise<void> {
   process.on('SIGINT', cleanup);
   process.on('SIGTERM', cleanup);
 
-  await startServer({ db, config, repositoryId: repo.id });
+  await startServer({ db, config, repositoryId: repo.id, dbPath });
 }
 
 main().catch((error) => {

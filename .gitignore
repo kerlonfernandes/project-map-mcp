@@ -27,9 +27,9 @@ Thumbs.db
 *.db-wal
 *.db-shm
 
-# Ondbay data directory and generated config (created per-project)
-.ondbay/
-ondbay.config.json
+# Project Map data directory and generated config (created per-project)
+.project-map/
+project-map.config.json
 
 # Test coverage
 coverage/

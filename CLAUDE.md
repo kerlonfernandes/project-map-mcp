@@ -1,8 +1,8 @@
-# Ondbay MCP — Project Rules & Development Standards
+# Project Map MCP — Project Rules & Development Standards
 
 ## Project Identity
 
-**Ondbay Project Intelligence MCP** is a Model Context Protocol server that
+**Project Map MCP** is a Model Context Protocol server that
 maintains persistent, verifiable, shared technical memory for software projects.
 It indexes repository structure, tracks component relationships, stores knowledge
 with traceable evidence, and delivers progressive context to AI clients — all

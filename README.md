@@ -1,4 +1,4 @@
-# Ondbay Project Intelligence MCP
+# Project Map MCP
 
 > Persistent, verifiable, shared technical memory for software projects — powered by Tree-sitter and SQLite.
 
@@ -7,7 +7,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-Strict-blue.svg)](https://www.typescriptlang.org/)
 [![MCP](https://img.shields.io/badge/MCP-Model%20Context%20Protocol-purple.svg)](https://modelcontextprotocol.io/)
 
-Ondbay is a [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that indexes your codebase, tracks relationships between components, stores knowledge with traceable evidence, and delivers progressive context to AI clients. It uses **Tree-sitter** for deterministic AST parsing and **SQLite + FTS5** for persistence and full-text search. It never executes your project's code and never calls external LLMs — every assertion traces back to source.
+Project Map MCP is a [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that indexes your codebase, tracks relationships between components, stores knowledge with traceable evidence, and delivers progressive context to AI clients. It uses **Tree-sitter** for deterministic AST parsing and **SQLite + FTS5** for persistence and full-text search. It never executes your project's code and never calls external LLMs — every assertion traces back to source.
 
 ---
 
@@ -17,9 +17,12 @@ Ondbay is a [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) ser
 - [Architecture](#architecture)
 - [Installation](#installation)
 - [Configuration](#configuration)
-- [Setup with Claude](#setup-with-claude)
-  - [Claude Desktop](#claude-desktop)
+- [Setup with AI Clients](#setup-with-ai-clients)
+  - [Automated Setup](#automated-setup-recommended)
+  - [Claude Desktop](#claude-desktop-manual)
   - [Claude Code (CLI)](#claude-code-cli)
+  - [Cursor](#cursor)
+  - [Windsurf](#windsurf)
 - [MCP Tools Reference](#mcp-tools-reference)
   - [get_context](#get_context)
   - [search](#search)
@@ -28,6 +31,7 @@ Ondbay is a [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) ser
   - [record](#record)
   - [sync](#sync)
   - [session](#session)
+  - [export](#export)
 - [CLI Usage](#cli-usage)
 - [Development](#development)
 - [Security](#security)
@@ -64,6 +68,12 @@ Ondbay is a [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) ser
 ### Convention Detection
 - **6 categories**: `naming`, `structure`, `pattern`, `config`, `testing`, `documentation`.
 - Detected when a pattern appears in at least 3 occurrences or 60% of matching files.
+
+### Portable & Shareable Databases
+- **Per-project database** — each project gets its own `.project-map/knowledge.db` with all indexed data.
+- **Portable by design** — all paths are stored as relative, making the database transferable across machines.
+- **Export/Import** — export a `.pmap.db` file and share it with teammates. They import it and instantly have the full project knowledge base without re-analyzing.
+- **Schema compatibility** — imports validate schema version to prevent loading incompatible databases.
 
 ### Infrastructure
 - **Full-text search** via SQLite FTS5 across entities, knowledge, and evidence.
@@ -125,31 +135,29 @@ analyzer/core.ts
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/your-user/ondbay-mcp.git
-cd ondbay-mcp
+git clone https://github.com/kerlonfernandes/project-map-mcp.git
+cd project-map-mcp
 
 # 2. Install dependencies
-npm install --legacy-peer-deps
+npm install
 
 # 3. Build the TypeScript project
 npm run build
 
 # 4. (Optional) Initialize a project for analysis
-node dist/cli/index.js init /path/to/your/project
+pmap init /path/to/your/project
 
 # 5. (Optional) Run the first full sync
-node dist/cli/index.js sync --full
+pmap sync --full
 ```
 
-> **Note:** The `--legacy-peer-deps` flag is required due to a peer dependency conflict between `tree-sitter@0.25.1` and `tree-sitter-php@0.24.2`.
-
-After `init`, a `.ondbay/` directory is created in the target project containing the SQLite database, and an `ondbay.config.json` configuration file is placed at the project root.
+After `init`, a `.project-map/` directory is created in the target project containing the SQLite database, and a `project-map.config.json` configuration file is placed at the project root.
 
 ---
 
 ## Configuration
 
-Ondbay uses a JSON configuration file (`ondbay.config.json`) at the project root. An example is provided in `ondbay.config.example.json`.
+Project Map MCP uses a JSON configuration file (`project-map.config.json`) at the project root. An example is provided in `project-map.config.example.json`.
 
 ### Full Configuration Reference
 
@@ -182,7 +190,7 @@ Ondbay uses a JSON configuration file (`ondbay.config.json`) at the project root
 
   // Database settings
   "database": {
-    "path": ".ondbay/knowledge.db",  // SQLite database location
+    "path": ".project-map/knowledge.db",  // SQLite database location
     "max_size_mb": 500,              // Max database size
     "cache_size_mb": 64              // SQLite cache size
   },
@@ -221,17 +229,40 @@ Ondbay uses a JSON configuration file (`ondbay.config.json`) at the project root
 
 | Variable | Description | Default |
 |---|---|---|
-| `ONDBAY_PROJECT_ROOT` | Path to the project to analyze | Required for MCP server |
-| `ONDBAY_DB_PATH` | Override database location | `{project_root}/.ondbay/knowledge.db` |
+| `PROJECT_MAP_PROJECT_ROOT` | Path to the project to analyze | Required for MCP server |
+| `PROJECT_MAP_DB_PATH` | Override database location | `{project_root}/.project-map/knowledge.db` |
 
 ---
 
-## Setup with Claude
+## Setup with AI Clients
 
-### Claude Desktop
+### Automated Setup (Recommended)
 
-Add the following to your Claude Desktop configuration file:
+Run the included setup script to configure Project Map MCP for your preferred IDE/client automatically:
 
+```bash
+# Interactive mode — detects your OS, finds installed clients, and configures them
+./setup.sh
+
+# Or specify the target project directly
+./setup.sh --project /path/to/your/project
+
+# Configure a specific client only
+./setup.sh --client claude-desktop --project /path/to/your/project
+./setup.sh --client claude-code --project /path/to/your/project
+./setup.sh --client cursor --project /path/to/your/project
+./setup.sh --client windsurf --project /path/to/your/project
+```
+
+The script works on **macOS**, **Linux**, and **Windows** (Git Bash / WSL / PowerShell). It:
+1. Detects installed MCP-compatible clients
+2. Resolves absolute paths for the server binary
+3. Writes or merges the MCP configuration into the correct config file
+4. Validates the setup with a dry-run
+
+### Claude Desktop (Manual)
+
+Config file locations:
 - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 - **Linux**: `~/.config/Claude/claude_desktop_config.json`
@@ -239,46 +270,82 @@ Add the following to your Claude Desktop configuration file:
 ```json
 {
   "mcpServers": {
-    "ondbay": {
+    "project-map-mcp": {
       "command": "node",
-      "args": ["/absolute/path/to/ondbay-mcp/dist/index.js"],
+      "args": ["/absolute/path/to/project-map-mcp/dist/index.js"],
       "env": {
-        "ONDBAY_PROJECT_ROOT": "/absolute/path/to/your/project"
+        "PROJECT_MAP_PROJECT_ROOT": "/absolute/path/to/your/project"
       }
     }
   }
 }
 ```
 
-Replace the paths with actual absolute paths on your system. Restart Claude Desktop after saving.
+Restart Claude Desktop after saving.
 
 ### Claude Code (CLI)
 
-Add to your project's `.claude/settings.json` or global settings:
+Add to your project's `.claude/settings.json` or global `~/.claude/settings.json`:
 
 ```json
 {
   "mcpServers": {
-    "ondbay": {
+    "project-map-mcp": {
       "command": "node",
-      "args": ["/absolute/path/to/ondbay-mcp/dist/index.js"],
+      "args": ["/absolute/path/to/project-map-mcp/dist/index.js"],
       "env": {
-        "ONDBAY_PROJECT_ROOT": "/absolute/path/to/your/project"
+        "PROJECT_MAP_PROJECT_ROOT": "/absolute/path/to/your/project"
       }
     }
   }
 }
 ```
 
-### Other MCP Clients (Cursor, Windsurf, etc.)
+### Cursor
 
-Any MCP-compatible client that supports STDIO transport can connect to Ondbay. The server binary is `dist/index.js` and it communicates via stdin/stdout JSON-RPC. Set the environment variable `ONDBAY_PROJECT_ROOT` to point to the project you want to analyze.
+Add to `.cursor/mcp.json` in your project root (or global settings):
+
+```json
+{
+  "mcpServers": {
+    "project-map-mcp": {
+      "command": "node",
+      "args": ["/absolute/path/to/project-map-mcp/dist/index.js"],
+      "env": {
+        "PROJECT_MAP_PROJECT_ROOT": "/absolute/path/to/your/project"
+      }
+    }
+  }
+}
+```
+
+### Windsurf
+
+Add to `~/.codeium/windsurf/mcp_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "project-map-mcp": {
+      "command": "node",
+      "args": ["/absolute/path/to/project-map-mcp/dist/index.js"],
+      "env": {
+        "PROJECT_MAP_PROJECT_ROOT": "/absolute/path/to/your/project"
+      }
+    }
+  }
+}
+```
+
+### Other MCP Clients
+
+Any MCP-compatible client that supports STDIO transport can connect to Project Map MCP. The server binary is `dist/index.js` and it communicates via stdin/stdout JSON-RPC. Set the environment variable `PROJECT_MAP_PROJECT_ROOT` to point to the project you want to analyze.
 
 ---
 
 ## MCP Tools Reference
 
-Ondbay exposes 7 tools through the MCP protocol. Each tool returns JSON with a `meta` field containing token usage, depth, purpose, and other metadata.
+Project Map MCP exposes 8 tools through the MCP protocol. Each tool returns JSON with a `meta` field containing token usage, depth, purpose, and other metadata.
 
 ### get_context
 
@@ -672,39 +739,98 @@ Manages work session continuity across AI chat sessions. Saves checkpoints of ta
 
 ---
 
-## CLI Usage
+### export
 
-Ondbay also provides a command-line interface for common operations outside of MCP:
+Manages portable database sharing. Export your indexed project database as a `.pmap.db` file and share it with teammates. They can import it to instantly have the full knowledge base without re-analyzing the project.
 
-```bash
-# Initialize a new project (creates .ondbay/ and config file)
-ondbay init [path]
+**Parameters:**
 
-# Incremental sync (only changed files)
-ondbay sync
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `action` | enum | Yes | — | `export` (create shareable file), `import` (load shared DB), `list` (show exports) |
+| `label` | string | No | project name | Human-readable label for the export, used in filename |
+| `path` | string | For `import` | — | Path to the `.pmap.db` file to import |
 
-# Full re-index
-ondbay sync --full
+**Examples:**
 
-# Show project status and latest snapshot
-ondbay status
+```json
+// Export the current database for sharing
+{
+  "action": "export",
+  "label": "sprint-42-complete"
+}
 
-# Search entities and knowledge
-ondbay search "PaymentService"
+// Import a database shared by a teammate
+{
+  "action": "import",
+  "path": "/path/to/shared-project.pmap.db"
+}
 
-# Help
-ondbay --help
+// List available exports
+{ "action": "list" }
 ```
 
-If installed globally or linked via npm, use `ondbay` directly. Otherwise:
+**Sharing workflow:**
+
+1. You index a project: `sync` with `action: "full"`
+2. Export the database: `export` with `action: "export"`
+3. Send the `.pmap.db` file to your teammate (Slack, email, shared drive)
+4. Teammate imports it: `export` with `action: "import"` and the file path
+5. Teammate now has all entities, knowledge, edges, and conventions — no re-analysis needed
+
+**Notes:**
+- The exported file is a complete SQLite database with all project data.
+- Paths are stored as relative, so the database works on any machine regardless of directory structure.
+- Import validates schema compatibility and creates a backup of the current database before replacing it.
+- Exports are saved in `.project-map/exports/` inside the project directory.
+
+---
+
+## CLI Usage
+
+Project Map MCP also provides a command-line interface for common operations outside of MCP:
+
+```bash
+# Initialize a new project (creates .project-map/ and config file)
+pmap init [path]
+
+# Incremental sync (only changed files)
+pmap sync
+
+# Full re-index
+pmap sync --full
+
+# Show project status and latest snapshot
+pmap status
+
+# Search entities and knowledge
+pmap search "PaymentService"
+
+# Export database for sharing with team
+pmap export [label]
+
+# Import a shared database file
+pmap import /path/to/shared.pmap.db
+
+# List available exports
+pmap exports
+
+# Help
+pmap --help
+```
+
+If installed globally or linked via npm, use `pmap` directly. Otherwise:
 
 ```bash
 node dist/cli/index.js init /path/to/project
 node dist/cli/index.js sync --full
 node dist/cli/index.js search "UserController"
+node dist/cli/index.js export "sprint-42"
+node dist/cli/index.js import /path/to/shared.pmap.db
+node dist/cli/index.js exports
 ```
 
-Environment variables `ONDBAY_PROJECT_ROOT` and `ONDBAY_DB_PATH` can override the default project root (current directory) and database location.
+Environment variables `PROJECT_MAP_PROJECT_ROOT` and `PROJECT_MAP_DB_PATH` can override the default project root (current directory) and database location.
 
 ---
 
@@ -719,9 +845,9 @@ Environment variables `ONDBAY_PROJECT_ROOT` and `ONDBAY_DB_PATH` can override th
 ### Setup
 
 ```bash
-git clone https://github.com/your-user/ondbay-mcp.git
-cd ondbay-mcp
-npm install --legacy-peer-deps
+git clone https://github.com/kerlonfernandes/project-map-mcp.git
+cd project-map-mcp
+npm install
 ```
 
 ### Scripts
@@ -755,6 +881,7 @@ src/
       record.ts
       sync.ts
       session.ts
+      export.ts
   analyzer/             # Code analysis (Tree-sitter, frameworks)
     core.ts             # Analysis pipeline orchestrator
     parsers/
@@ -765,7 +892,7 @@ src/
       express.ts        # Express.js framework adapter
     mysql.ts            # MySQL schema analyzer
   cli/                  # Command-line interface
-    index.ts            # CLI commands (init, sync, status, search)
+    index.ts            # CLI commands (init, sync, status, search, export, import)
     config.ts           # Configuration loading
   domain/               # Domain services (business logic)
     knowledge.ts        # Duplicate detection, Jaccard similarity
@@ -789,6 +916,7 @@ src/
     record.ts           # Knowledge record management
     sync.ts             # Repository synchronization
     session.ts          # Work session management
+    export.ts           # Database export/import for team sharing
   shared/               # Shared utilities and types
     types.ts            # All TypeScript interfaces and type unions
     constants.ts        # Application-wide constants
@@ -801,6 +929,7 @@ migrations/
   001_initial.sql       # Core schema (entities, edges, knowledge, etc.)
   002_work_sessions.sql # Work sessions and checkpoints
   003_conventions_unique.sql
+  004_portable_db.sql   # Portable database: db_metadata, relative paths
 
 test/
   unit/                 # Unit tests (pure functions, in-memory SQLite)
@@ -829,7 +958,7 @@ npm run test:coverage
 
 ## Security
 
-Ondbay treats all repository content as untrusted data. Security measures include:
+Project Map MCP treats all repository content as untrusted data. Security measures include:
 
 - **Path traversal protection** — all file paths are validated and resolved against the project root. Symlinks that escape the root are blocked.
 - **Blocked paths** — sensitive files (`.env*`, `*.pem`, `*.key`, etc.) are never read. Configurable via `security.blocked_paths`.
@@ -838,7 +967,7 @@ Ondbay treats all repository content as untrusted data. Security measures includ
 - **MySQL safety** — connections restricted to allowed hosts (default: localhost only). System schemas are blocked. Read-only queries only.
 - **Audit logging** — every tool call is logged with operation, parameters hash, result summary, entities affected, and duration.
 - **Generic error responses** — internal error details never leak to clients. Details are logged server-side only.
-- **No code execution** — Ondbay never executes project code. Analysis is purely structural (AST parsing).
+- **No code execution** — Project Map MCP never executes project code. Analysis is purely structural (AST parsing).
 - **No LLM calls** — all analysis is deterministic. Same input always produces the same output.
 
 ---
@@ -855,7 +984,7 @@ Ondbay treats all repository content as untrusted data. Security measures includ
 
 > Memoria tecnica persistente, verificavel e compartilhada para projetos de software — com Tree-sitter e SQLite.
 
-O Ondbay e um servidor [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) que indexa seu codigo-fonte, rastreia relacionamentos entre componentes, armazena conhecimento com evidencias rastreaveis e entrega contexto progressivo para clientes de IA. Utiliza **Tree-sitter** para parsing AST deterministico e **SQLite + FTS5** para persistencia e busca full-text. Nunca executa codigo do seu projeto e nunca chama LLMs externas — toda afirmacao e rastreavel ate o codigo-fonte.
+O Project Map MCP e um servidor [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) que indexa seu codigo-fonte, rastreia relacionamentos entre componentes, armazena conhecimento com evidencias rastreaveis e entrega contexto progressivo para clientes de IA. Utiliza **Tree-sitter** para parsing AST deterministico e **SQLite + FTS5** para persistencia e busca full-text. Nunca executa codigo do seu projeto e nunca chama LLMs externas — toda afirmacao e rastreavel ate o codigo-fonte.
 
 ---
 
@@ -865,9 +994,11 @@ O Ondbay e um servidor [Model Context Protocol (MCP)](https://modelcontextprotoc
 - [Arquitetura](#arquitetura)
 - [Instalacao](#instalacao)
 - [Configuracao](#configuracao-1)
-- [Configurar com o Claude](#configurar-com-o-claude)
+- [Configurar com Clientes IA](#configurar-com-clientes-ia)
   - [Claude Desktop](#claude-desktop-1)
   - [Claude Code (CLI)](#claude-code-cli-1)
+  - [Cursor](#cursor-1)
+  - [Windsurf](#windsurf-1)
 - [Referencia das Tools MCP](#referencia-das-tools-mcp)
   - [get_context](#get_context-1)
   - [search](#search-1)
@@ -876,6 +1007,7 @@ O Ondbay e um servidor [Model Context Protocol (MCP)](https://modelcontextprotoc
   - [record](#record-1)
   - [sync](#sync-1)
   - [session](#session-1)
+  - [export](#export-1)
 - [Uso via CLI](#uso-via-cli)
 - [Desenvolvimento](#desenvolvimento)
 - [Seguranca](#seguranca)
@@ -911,6 +1043,12 @@ O Ondbay e um servidor [Model Context Protocol (MCP)](https://modelcontextprotoc
 ### Deteccao de Convencoes
 - **6 categorias**: `naming`, `structure`, `pattern`, `config`, `testing`, `documentation`.
 - Detectadas quando um padrao aparece em pelo menos 3 ocorrencias ou 60% dos arquivos correspondentes.
+
+### Bancos de Dados Portaveis e Compartilhaveis
+- **Banco de dados por projeto** — cada projeto tem seu proprio `.project-map/knowledge.db` com todos os dados indexados.
+- **Portavel por design** — todos os caminhos sao armazenados como relativos, permitindo transferir o banco entre maquinas.
+- **Export/Import** — exporte um arquivo `.pmap.db` e compartilhe com colegas. Eles importam e tem instantaneamente toda a base de conhecimento sem re-analisar.
+- **Compatibilidade de schema** — imports validam a versao do schema para prevenir carregamento de bancos incompativeis.
 
 ### Infraestrutura
 - **Busca full-text** via SQLite FTS5 em entidades, conhecimento e evidencias.
@@ -972,31 +1110,29 @@ analyzer/core.ts
 
 ```bash
 # 1. Clonar o repositorio
-git clone https://github.com/your-user/ondbay-mcp.git
-cd ondbay-mcp
+git clone https://github.com/kerlonfernandes/project-map-mcp.git
+cd project-map-mcp
 
 # 2. Instalar dependencias
-npm install --legacy-peer-deps
+npm install
 
 # 3. Compilar o projeto TypeScript
 npm run build
 
 # 4. (Opcional) Inicializar um projeto para analise
-node dist/cli/index.js init /caminho/para/seu/projeto
+pmap init /caminho/para/seu/projeto
 
 # 5. (Opcional) Rodar o primeiro sync completo
-node dist/cli/index.js sync --full
+pmap sync --full
 ```
 
-> **Nota:** A flag `--legacy-peer-deps` e necessaria devido a um conflito de dependencia entre `tree-sitter@0.25.1` e `tree-sitter-php@0.24.2`.
-
-Apos o `init`, um diretorio `.ondbay/` e criado no projeto alvo contendo o banco SQLite, e um arquivo de configuracao `ondbay.config.json` e colocado na raiz do projeto.
+Apos o `init`, um diretorio `.project-map/` e criado no projeto alvo contendo o banco SQLite, e um arquivo de configuracao `project-map.config.json` e colocado na raiz do projeto.
 
 ---
 
 ## Configuracao
 
-O Ondbay usa um arquivo de configuracao JSON (`ondbay.config.json`) na raiz do projeto. Um exemplo e fornecido em `ondbay.config.example.json`.
+O Project Map MCP usa um arquivo de configuracao JSON (`project-map.config.json`) na raiz do projeto. Um exemplo e fornecido em `project-map.config.example.json`.
 
 ### Referencia Completa de Configuracao
 
@@ -1029,7 +1165,7 @@ O Ondbay usa um arquivo de configuracao JSON (`ondbay.config.json`) na raiz do p
 
   // Configuracoes do banco de dados
   "database": {
-    "path": ".ondbay/knowledge.db",  // Localizacao do banco SQLite
+    "path": ".project-map/knowledge.db",  // Localizacao do banco SQLite
     "max_size_mb": 500,              // Tamanho maximo do banco
     "cache_size_mb": 64              // Tamanho do cache SQLite
   },
@@ -1068,17 +1204,34 @@ O Ondbay usa um arquivo de configuracao JSON (`ondbay.config.json`) na raiz do p
 
 | Variavel | Descricao | Padrao |
 |---|---|---|
-| `ONDBAY_PROJECT_ROOT` | Caminho para o projeto a analisar | Obrigatorio para o servidor MCP |
-| `ONDBAY_DB_PATH` | Sobrescrever localizacao do banco | `{raiz_do_projeto}/.ondbay/knowledge.db` |
+| `PROJECT_MAP_PROJECT_ROOT` | Caminho para o projeto a analisar | Obrigatorio para o servidor MCP |
+| `PROJECT_MAP_DB_PATH` | Sobrescrever localizacao do banco | `{raiz_do_projeto}/.project-map/knowledge.db` |
 
 ---
 
-## Configurar com o Claude
+## Configurar com Clientes IA
+
+### Setup Automatizado (Recomendado)
+
+Execute o script de setup incluido para configurar o Project Map MCP automaticamente:
+
+```bash
+# Modo interativo — detecta seu SO, encontra clientes instalados e configura
+./setup.sh
+
+# Ou especifique o projeto alvo diretamente
+./setup.sh --project /caminho/para/seu/projeto
+
+# Configurar apenas um cliente especifico
+./setup.sh --client claude-desktop --project /caminho/para/seu/projeto
+./setup.sh --client cursor --project /caminho/para/seu/projeto
+```
+
+O script funciona em **macOS**, **Linux** e **Windows** (Git Bash / WSL / PowerShell).
 
 ### Claude Desktop
 
-Adicione o seguinte ao arquivo de configuracao do Claude Desktop:
-
+Localizacao do config:
 - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 - **Linux**: `~/.config/Claude/claude_desktop_config.json`
@@ -1086,46 +1239,82 @@ Adicione o seguinte ao arquivo de configuracao do Claude Desktop:
 ```json
 {
   "mcpServers": {
-    "ondbay": {
+    "project-map-mcp": {
       "command": "node",
-      "args": ["/caminho/absoluto/para/ondbay-mcp/dist/index.js"],
+      "args": ["/caminho/absoluto/para/project-map-mcp/dist/index.js"],
       "env": {
-        "ONDBAY_PROJECT_ROOT": "/caminho/absoluto/para/seu/projeto"
+        "PROJECT_MAP_PROJECT_ROOT": "/caminho/absoluto/para/seu/projeto"
       }
     }
   }
 }
 ```
 
-Substitua os caminhos por caminhos absolutos reais do seu sistema. Reinicie o Claude Desktop apos salvar.
+Reinicie o Claude Desktop apos salvar.
 
 ### Claude Code (CLI)
 
-Adicione ao `.claude/settings.json` do seu projeto ou nas configuracoes globais:
+Adicione ao `.claude/settings.json` do seu projeto ou global `~/.claude/settings.json`:
 
 ```json
 {
   "mcpServers": {
-    "ondbay": {
+    "project-map-mcp": {
       "command": "node",
-      "args": ["/caminho/absoluto/para/ondbay-mcp/dist/index.js"],
+      "args": ["/caminho/absoluto/para/project-map-mcp/dist/index.js"],
       "env": {
-        "ONDBAY_PROJECT_ROOT": "/caminho/absoluto/para/seu/projeto"
+        "PROJECT_MAP_PROJECT_ROOT": "/caminho/absoluto/para/seu/projeto"
       }
     }
   }
 }
 ```
 
-### Outros Clientes MCP (Cursor, Windsurf, etc.)
+### Cursor
 
-Qualquer cliente compativel com MCP que suporte transporte STDIO pode conectar ao Ondbay. O binario do servidor e `dist/index.js` e ele se comunica via stdin/stdout JSON-RPC. Defina a variavel de ambiente `ONDBAY_PROJECT_ROOT` apontando para o projeto que deseja analisar.
+Adicione ao `.cursor/mcp.json` na raiz do projeto (ou configuracoes globais):
+
+```json
+{
+  "mcpServers": {
+    "project-map-mcp": {
+      "command": "node",
+      "args": ["/caminho/absoluto/para/project-map-mcp/dist/index.js"],
+      "env": {
+        "PROJECT_MAP_PROJECT_ROOT": "/caminho/absoluto/para/seu/projeto"
+      }
+    }
+  }
+}
+```
+
+### Windsurf
+
+Adicione ao `~/.codeium/windsurf/mcp_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "project-map-mcp": {
+      "command": "node",
+      "args": ["/caminho/absoluto/para/project-map-mcp/dist/index.js"],
+      "env": {
+        "PROJECT_MAP_PROJECT_ROOT": "/caminho/absoluto/para/seu/projeto"
+      }
+    }
+  }
+}
+```
+
+### Outros Clientes MCP
+
+Qualquer cliente compativel com MCP que suporte transporte STDIO pode conectar ao Project Map MCP. O binario do servidor e `dist/index.js` e ele se comunica via stdin/stdout JSON-RPC. Defina a variavel de ambiente `PROJECT_MAP_PROJECT_ROOT` apontando para o projeto que deseja analisar.
 
 ---
 
 ## Referencia das Tools MCP
 
-O Ondbay expoe 7 tools atraves do protocolo MCP. Cada tool retorna JSON com um campo `meta` contendo uso de tokens, profundidade, proposito e outros metadados.
+O Project Map MCP expoe 8 tools atraves do protocolo MCP. Cada tool retorna JSON com um campo `meta` contendo uso de tokens, profundidade, proposito e outros metadados.
 
 ### get_context
 
@@ -1519,39 +1708,98 @@ Gerencia continuidade de sessoes de trabalho entre sessoes de chat com IA. Salva
 
 ---
 
-## Uso via CLI
+### export
 
-O Ondbay tambem fornece uma interface de linha de comando para operacoes comuns fora do MCP:
+Gerencia compartilhamento portatil de bancos de dados. Exporte seu banco de dados indexado como um arquivo `.pmap.db` e compartilhe com colegas de equipe. Eles podem importa-lo para ter instantaneamente toda a base de conhecimento sem re-analisar o projeto.
 
-```bash
-# Inicializar um novo projeto (cria .ondbay/ e arquivo de config)
-ondbay init [caminho]
+**Parametros:**
 
-# Sync incremental (apenas arquivos alterados)
-ondbay sync
+| Parametro | Tipo | Obrigatorio | Padrao | Descricao |
+|---|---|---|---|---|
+| `action` | enum | Sim | — | `export` (criar arquivo compartilhavel), `import` (carregar DB compartilhado), `list` (listar exports) |
+| `label` | string | Nao | nome do projeto | Label legivel para o export, usado no nome do arquivo |
+| `path` | string | Para `import` | — | Caminho para o arquivo `.pmap.db` a importar |
 
-# Re-indexacao completa
-ondbay sync --full
+**Exemplos:**
 
-# Mostrar status do projeto e ultimo snapshot
-ondbay status
+```json
+// Exportar o banco atual para compartilhar
+{
+  "action": "export",
+  "label": "sprint-42-completa"
+}
 
-# Buscar entidades e conhecimento
-ondbay search "PaymentService"
+// Importar um banco compartilhado por um colega
+{
+  "action": "import",
+  "path": "/caminho/para/projeto-compartilhado.pmap.db"
+}
 
-# Ajuda
-ondbay --help
+// Listar exports disponiveis
+{ "action": "list" }
 ```
 
-Se instalado globalmente ou vinculado via npm, use `ondbay` diretamente. Caso contrario:
+**Fluxo de compartilhamento:**
+
+1. Voce indexa o projeto: `sync` com `action: "full"`
+2. Exporta o banco: `export` com `action: "export"`
+3. Envia o arquivo `.pmap.db` para seu colega (Slack, email, drive compartilhado)
+4. Colega importa: `export` com `action: "import"` e o caminho do arquivo
+5. Colega agora tem todas as entidades, conhecimento, arestas e convencoes — sem re-analise
+
+**Notas:**
+- O arquivo exportado e um banco SQLite completo com todos os dados do projeto.
+- Caminhos sao armazenados como relativos, entao o banco funciona em qualquer maquina independente da estrutura de diretorios.
+- O import valida compatibilidade de schema e cria backup do banco atual antes de substituir.
+- Exports sao salvos em `.project-map/exports/` dentro do diretorio do projeto.
+
+---
+
+## Uso via CLI
+
+O Project Map MCP tambem fornece uma interface de linha de comando para operacoes comuns fora do MCP:
+
+```bash
+# Inicializar um novo projeto (cria .project-map/ e arquivo de config)
+pmap init [caminho]
+
+# Sync incremental (apenas arquivos alterados)
+pmap sync
+
+# Re-indexacao completa
+pmap sync --full
+
+# Mostrar status do projeto e ultimo snapshot
+pmap status
+
+# Buscar entidades e conhecimento
+pmap search "PaymentService"
+
+# Exportar banco de dados para compartilhar com a equipe
+pmap export "sprint-42"
+
+# Importar banco compartilhado por um colega
+pmap import caminho/para/arquivo.pmap.db
+
+# Listar exports disponiveis
+pmap exports
+
+# Ajuda
+pmap --help
+```
+
+Se instalado globalmente ou vinculado via npm, use `pmap` diretamente. Caso contrario:
 
 ```bash
 node dist/cli/index.js init /caminho/para/projeto
 node dist/cli/index.js sync --full
 node dist/cli/index.js search "UserController"
+node dist/cli/index.js export "minha-label"
+node dist/cli/index.js import caminho/para/arquivo.pmap.db
+node dist/cli/index.js exports
 ```
 
-As variaveis de ambiente `ONDBAY_PROJECT_ROOT` e `ONDBAY_DB_PATH` podem sobrescrever a raiz padrao do projeto (diretorio atual) e a localizacao do banco.
+As variaveis de ambiente `PROJECT_MAP_PROJECT_ROOT` e `PROJECT_MAP_DB_PATH` podem sobrescrever a raiz padrao do projeto (diretorio atual) e a localizacao do banco.
 
 ---
 
@@ -1566,9 +1814,9 @@ As variaveis de ambiente `ONDBAY_PROJECT_ROOT` e `ONDBAY_DB_PATH` podem sobrescr
 ### Setup
 
 ```bash
-git clone https://github.com/your-user/ondbay-mcp.git
-cd ondbay-mcp
-npm install --legacy-peer-deps
+git clone https://github.com/kerlonfernandes/project-map-mcp.git
+cd project-map-mcp
+npm install
 ```
 
 ### Scripts
@@ -1602,6 +1850,7 @@ src/
       record.ts
       sync.ts
       session.ts
+      export.ts         # Export/import de bancos de dados portaveis
   analyzer/             # Analise de codigo (Tree-sitter, frameworks)
     core.ts             # Orquestrador do pipeline de analise
     parsers/
@@ -1612,7 +1861,7 @@ src/
       express.ts        # Adaptador de framework Express.js
     mysql.ts            # Analisador de schema MySQL
   cli/                  # Interface de linha de comando
-    index.ts            # Comandos CLI (init, sync, status, search)
+    index.ts            # Comandos CLI (init, sync, status, search, export, import, exports)
     config.ts           # Carregamento de configuracao
   domain/               # Servicos de dominio (logica de negocio)
     knowledge.ts        # Deteccao de duplicatas, similaridade Jaccard
@@ -1636,6 +1885,7 @@ src/
     record.ts           # Gerenciamento de registros de conhecimento
     sync.ts             # Sincronizacao de repositorio
     session.ts          # Gerenciamento de sessoes de trabalho
+    export.ts           # Export/import de bancos de dados portaveis
   shared/               # Utilitarios e tipos compartilhados
     types.ts            # Todas as interfaces e unioes de tipo TypeScript
     constants.ts        # Constantes globais da aplicacao
@@ -1647,7 +1897,8 @@ src/
 migrations/
   001_initial.sql       # Schema principal (entidades, arestas, conhecimento, etc.)
   002_work_sessions.sql # Sessoes de trabalho e checkpoints
-  003_conventions_unique.sql
+  003_conventions_unique.sql  # Indice unico para convencoes
+  004_portable_db.sql   # Tabela db_metadata + paths relativos para portabilidade
 
 test/
   unit/                 # Testes unitarios (funcoes puras, SQLite em memoria)
@@ -1676,7 +1927,7 @@ npm run test:coverage
 
 ## Seguranca
 
-O Ondbay trata todo conteudo do repositorio como dados nao confiaveis. As medidas de seguranca incluem:
+O Project Map MCP trata todo conteudo do repositorio como dados nao confiaveis. As medidas de seguranca incluem:
 
 - **Protecao contra path traversal** — todos os caminhos de arquivo sao validados e resolvidos contra a raiz do projeto. Symlinks que escapam da raiz sao bloqueados.
 - **Caminhos bloqueados** — arquivos sensiveis (`.env*`, `*.pem`, `*.key`, etc.) nunca sao lidos. Configuravel via `security.blocked_paths`.
@@ -1685,7 +1936,7 @@ O Ondbay trata todo conteudo do repositorio como dados nao confiaveis. As medida
 - **Seguranca MySQL** — conexoes restritas a hosts permitidos (padrao: apenas localhost). Schemas de sistema sao bloqueados. Apenas consultas de leitura.
 - **Log de auditoria** — toda chamada de tool e registrada com operacao, hash de parametros, resumo do resultado, entidades afetadas e duracao.
 - **Respostas de erro genericas** — detalhes internos de erro nunca vazam para clientes. Detalhes sao logados apenas no servidor.
-- **Sem execucao de codigo** — o Ondbay nunca executa codigo do projeto. A analise e puramente estrutural (parsing AST).
+- **Sem execucao de codigo** — o Project Map MCP nunca executa codigo do projeto. A analise e puramente estrutural (parsing AST).
 - **Sem chamadas de LLM** — toda analise e deterministica. Mesma entrada sempre produz a mesma saida.
 
 ---

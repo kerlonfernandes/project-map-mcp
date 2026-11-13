@@ -211,6 +211,22 @@ export const DEFAULT_BLOCKED_PATTERNS = [
 ];
 
 // ──────────────────────────────────────────────────────────────────────
+// Export / Import
+// ──────────────────────────────────────────────────────────────────────
+
+/** Default directory name inside the project root for database exports. */
+export const EXPORT_DIR_NAME = '.project-map/exports';
+
+/** File extension for exported knowledge databases. */
+export const EXPORT_FILE_EXTENSION = '.pmap.db';
+
+/** Current export format version — bump on breaking schema changes. */
+export const EXPORT_FORMAT_VERSION = 1;
+
+/** Relative path (from project root) where the active DB is stored. */
+export const RELATIVE_DB_PATH = '.';
+
+// ──────────────────────────────────────────────────────────────────────
 // Database Config (SQLite PRAGMAs)
 // ──────────────────────────────────────────────────────────────────────
 

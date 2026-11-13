@@ -26,7 +26,7 @@ import { sha256 } from '../../shared/utils.js';
 import { EDGE_WEIGHTS } from '../../shared/constants.js';
 
 // Tree-sitter-php exposes the language under .php for the PHP sub-grammar
-const phpLanguage = (PhpLanguage as { php: Parser.Language }).php ?? PhpLanguage;
+const phpLanguage = (PhpLanguage as { php: unknown }).php ?? PhpLanguage;
 
 /**
  * Parses a PHP file and extracts entities, edges, and evidence.
@@ -37,7 +37,7 @@ const phpLanguage = (PhpLanguage as { php: Parser.Language }).php ?? PhpLanguage
  */
 export function parsePhpFile(relativePath: string, content: string): FileAnalysisResult {
   const parser = new Parser();
-  parser.setLanguage(phpLanguage as Parser.Language);
+  parser.setLanguage(phpLanguage);
 
   const tree = parser.parse(content);
   const entities: ParsedEntity[] = [];

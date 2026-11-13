@@ -6,10 +6,10 @@
  * Uses the same Application Services as the MCP adapter.
  *
  * Usage:
- *   project-map init [path]       — Initialize a new project
- *   project-map sync [--full]     — Synchronize (index) the project
- *   project-map status            — Show project and snapshot status
- *   project-map search <query>    — Search entities and knowledge
+ *   pmap init [path]       — Initialize a new project
+ *   pmap sync [--full]     — Synchronize (index) the project
+ *   pmap status            — Show project and snapshot status
+ *   pmap search <query>    — Search entities and knowledge
  *
  * Used by: end users via command line.
  */
@@ -18,9 +18,14 @@ import path from 'node:path';
 import fs from 'node:fs';
 
 import { openDatabase, closeDatabase } from '../repository/db.js';
-import { createProjectWithRepository, findProjectByPath, findRepositoryByProjectId } from '../repository/projects.js';
+import {
+  createProjectWithRepository,
+  findFirstProject,
+  findRepositoryByProjectId,
+} from '../repository/projects.js';
 import { syncRepository } from '../services/sync.js';
 import { search } from '../services/search.js';
+import { exportDatabase, importDatabase, listExports } from '../services/export.js';
 import { loadConfig } from './config.js';
 import type { ProjectMapConfig } from '../shared/types.js';
 
@@ -37,6 +42,12 @@ async function main(): Promise<void> {
       return handleStatus();
     case 'search':
       return handleSearch(args.slice(1).join(' '));
+    case 'export':
+      return handleExport(args[1]);
+    case 'import':
+      return handleImport(args[1]);
+    case 'exports':
+      return handleListExports();
     case '--help':
     case '-h':
     case undefined:
@@ -50,8 +61,8 @@ async function main(): Promise<void> {
 
 async function handleInit(targetPath?: string): Promise<void> {
   const projectRoot = path.resolve(targetPath ?? '.');
-  const project-mapDir = path.join(projectRoot, '.project-map');
-  const dbPath = path.join(project-mapDir, 'knowledge.db');
+  const projectMapDir = path.join(projectRoot, '.project-map');
+  const dbPath = path.join(projectMapDir, 'knowledge.db');
   const configPath = path.join(projectRoot, 'project-map.config.json');
 
   if (fs.existsSync(dbPath)) {
@@ -60,7 +71,7 @@ async function handleInit(targetPath?: string): Promise<void> {
   }
 
   // Create .project-map directory
-  fs.mkdirSync(project-mapDir, { recursive: true });
+  fs.mkdirSync(projectMapDir, { recursive: true });
 
   // Create default config if not present
   if (!fs.existsSync(configPath)) {
@@ -181,7 +192,7 @@ async function handleStatus(): Promise<void> {
 
 function handleSearch(query: string): void {
   if (!query.trim()) {
-    console.error('Usage: project-map search <query>');
+    console.error('Usage: pmap search <query>');
     process.exit(1);
   }
 
@@ -199,16 +210,87 @@ function handleSearch(query: string): void {
   console.log(JSON.stringify(result, null, 2));
 }
 
+function handleExport(label?: string): void {
+  const { db, config } = openProject();
+
+  const result = exportDatabase(db, config.project.root, label);
+  closeDatabase(db);
+
+  console.log(`Database exported successfully!`);
+  console.log(`  File: ${result.export_path}`);
+  console.log(`  Project: ${result.project_name}`);
+  console.log(`  Label: ${result.label}`);
+  console.log(`  Entities: ${result.entities_count}`);
+  console.log(`  Knowledge: ${result.knowledge_count}`);
+  console.log(`  Edges: ${result.edges_count}`);
+  console.log(`\nShare this file with your team. They can import it with:`);
+  console.log(`  pmap import ${result.export_path}`);
+}
+
+function handleImport(importPath?: string): void {
+  if (!importPath) {
+    console.error('Usage: pmap import <path-to-pmap-db-file>');
+    process.exit(1);
+  }
+
+  const projectRoot = process.env['PROJECT_MAP_PROJECT_ROOT'] ?? process.cwd();
+  const config = loadConfig(projectRoot);
+  const dbPath = process.env['PROJECT_MAP_DB_PATH']
+    ?? path.resolve(projectRoot, config.database.path);
+
+  if (!fs.existsSync(dbPath)) {
+    console.error(`No Project Map project found. Run "pmap init" first.`);
+    process.exit(1);
+  }
+
+  const db = openDatabase(dbPath);
+  const result = importDatabase(db, projectRoot, importPath, dbPath);
+
+  console.log(`Database imported successfully!`);
+  console.log(`  Project: ${result.project_name}`);
+  console.log(`  Entities: ${result.entities_count}`);
+  console.log(`  Knowledge: ${result.knowledge_count}`);
+  console.log(`  Edges: ${result.edges_count}`);
+  if (result.backup_path) {
+    console.log(`  Backup: ${result.backup_path}`);
+  }
+  console.log(`\nRestart the MCP server to use the imported data.`);
+}
+
+function handleListExports(): void {
+  const projectRoot = process.env['PROJECT_MAP_PROJECT_ROOT'] ?? process.cwd();
+
+  const exports = listExports(projectRoot);
+
+  if (exports.length === 0) {
+    console.log('No exports found. Run "pmap export" to create one.');
+    return;
+  }
+
+  console.log(`Found ${exports.length} export(s):\n`);
+  for (const exp of exports) {
+    const sizeMb = (exp.size_bytes / (1024 * 1024)).toFixed(1);
+    console.log(`  ${exp.label} (${exp.project_name})`);
+    console.log(`    File: ${exp.path}`);
+    console.log(`    Date: ${exp.exported_at}`);
+    console.log(`    Size: ${sizeMb} MB`);
+    console.log('');
+  }
+}
+
 function printHelp(): void {
   console.log(`
 Project Map MCP — CLI
 
 Usage:
-  project-map init [path]       Initialize a new project
-  project-map sync [--full]     Synchronize (index) the project
-  project-map status            Show project and snapshot status
-  project-map search <query>    Search entities and knowledge
-  project-map --help            Show this help
+  pmap init [path]         Initialize a new project
+  pmap sync [--full]       Synchronize (index) the project
+  pmap status              Show project and snapshot status
+  pmap search <query>      Search entities and knowledge
+  pmap export [label]      Export database for sharing with team
+  pmap import <path>       Import a shared database file
+  pmap exports             List available exports
+  pmap --help              Show this help
 
 Environment:
   PROJECT_MAP_PROJECT_ROOT      Project root directory (default: cwd)
@@ -224,21 +306,22 @@ function openProject(): {
   db: ReturnType<typeof openDatabase>;
   repositoryId: string;
   config: ProjectMapConfig;
+  dbPath: string;
 } {
   const projectRoot = process.env['PROJECT_MAP_PROJECT_ROOT'] ?? process.cwd();
   const config = loadConfig(projectRoot);
   const dbPath = process.env['PROJECT_MAP_DB_PATH'] ?? path.resolve(projectRoot, config.database.path);
 
   if (!fs.existsSync(dbPath)) {
-    console.error(`No Project Map project found. Run "project-map init" first.`);
+    console.error(`No Project Map project found. Run "pmap init" first.`);
     process.exit(1);
   }
 
   const db = openDatabase(dbPath);
 
-  const project = findProjectByPath(db, projectRoot);
+  const project = findFirstProject(db);
   if (!project) {
-    console.error(`Project not found in database for: ${projectRoot}`);
+    console.error(`Project not found in database.`);
     closeDatabase(db);
     process.exit(1);
   }
@@ -250,7 +333,7 @@ function openProject(): {
     process.exit(1);
   }
 
-  return { db, repositoryId: repo.id, config };
+  return { db, repositoryId: repo.id, config, dbPath };
 }
 
 main().catch((error) => {

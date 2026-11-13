@@ -1,4 +1,4 @@
-# Ondbay MCP — Handoff de Desenvolvimento
+# Project Map MCP — Handoff de Desenvolvimento
 
 **Data:** 2026-11-13  
 **Documento base:** [Especificação Técnica v4.0](./especificacao-tecnica-v4.md)
@@ -7,7 +7,7 @@
 
 ## O Que é Este Projeto
 
-O **Ondbay Project Intelligence MCP** e um servidor Model Context Protocol que mantém memória técnica persistente e verificável de projetos de software. Ele indexa repositórios via Tree-sitter (PHP e JavaScript), rastreia relacionamentos entre componentes, armazena conhecimento com evidências rastreáveis, e entrega contexto progressivo a clientes de IA — tudo sem executar código do projeto nem chamar LLMs.
+O **Project Map MCP** e um servidor Model Context Protocol que mantém memória técnica persistente e verificável de projetos de software. Ele indexa repositórios via Tree-sitter (PHP e JavaScript), rastreia relacionamentos entre componentes, armazena conhecimento com evidências rastreáveis, e entrega contexto progressivo a clientes de IA — tudo sem executar código do projeto nem chamar LLMs.
 
 A especificação completa está em `docs/especificacao-tecnica-v4.md`. As regras de desenvolvimento estão em `CLAUDE.md` na raiz do projeto.
 
@@ -44,7 +44,7 @@ SQLite + FTS5
 | Repository Layer completo | `src/repository/{entities,evidence,knowledge,graph,snapshots,projects,cache,audit,sessions}.ts` | Completo |
 | PHP Parser (Tree-sitter) | `src/analyzer/parsers/php.ts` | Completo |
 | JavaScript Parser (Tree-sitter) | `src/analyzer/parsers/javascript.ts` | Completo |
-| MCP Server com 7 tools | `src/adapter/server.ts`, `src/adapter/tools/*.ts` | Completo |
+| MCP Server com 8 tools | `src/adapter/server.ts`, `src/adapter/tools/*.ts` | Completo |
 | Application Services | `src/services/{sync,search,context,graph,impact,record,session}.ts` | Completo |
 | CLI (init, sync, status, search) | `src/cli/index.ts`, `src/cli/config.ts` | Completo |
 | Entry point principal | `src/index.ts` | Completo |
@@ -73,6 +73,17 @@ SQLite + FTS5
 | Tool Handler | `src/adapter/tools/session.ts` | **COMPLETO** |
 | Types + Error + Schema | `src/shared/types.ts`, `errors.ts`, `schemas.ts` | **COMPLETO** |
 | Testes unitários | `test/unit/repository/sessions.test.ts`, `test/unit/services/session.test.ts` | **COMPLETO** |
+
+### Fase 2.6 — Portable/Shareable Databases (100% COMPLETA)
+
+| Componente | Arquivo(s) | Status |
+|---|---|---|
+| Migration: db_metadata + relative paths | `migrations/004_portable_db.sql` | **COMPLETO** — Tabela db_metadata, conversão de paths absolutos para relativos |
+| Export Service | `src/services/export.ts` | **COMPLETO** — Export (VACUUM INTO + metadata), import (validate + backup + replace), list exports |
+| MCP Tool: export | `src/adapter/tools/export.ts` + `server.ts` | **COMPLETO** — Actions: export, import, list |
+| CLI: export/import/exports | `src/cli/index.ts` | **COMPLETO** — `pmap export [label]`, `pmap import <path>`, `pmap exports` |
+| Types + Constants + Errors | `src/shared/{types,constants,errors}.ts` | **COMPLETO** — ExportInput, ExportError, IncompatibleSchemaError, EXPORT_* constants |
+| Relative paths (portable DB) | `src/repository/projects.ts`, `src/index.ts` | **COMPLETO** — root_path='.' no DB, findFirstProject(), findProjectByName() |
 
 ### Fase 3 — Advanced (100% COMPLETA)
 
@@ -125,8 +136,17 @@ node dist/cli/index.js init
 # Sync completo
 node dist/cli/index.js sync --full
 
+# Exportar banco para compartilhar com a equipe
+node dist/cli/index.js export "sprint-42"
+
+# Importar banco compartilhado por um colega
+node dist/cli/index.js import caminho/para/arquivo.pmap.db
+
+# Listar exports disponíveis
+node dist/cli/index.js exports
+
 # Iniciar MCP server (via STDIO)
-ONDBAY_PROJECT_ROOT=/path/to/project node dist/index.js
+PROJECT_MAP_PROJECT_ROOT=/path/to/project node dist/index.js
 ```
 
 ---
@@ -176,6 +196,14 @@ ONDBAY_PROJECT_ROOT=/path/to/project node dist/index.js
 - Remove entidades órfãs, edges quebrados, cache expirado
 - Reporta knowledge stale
 
+### Portable / Shareable Databases
+- **Paths relativos:** `projects.root_path` e `repositories.path` armazenam `.` (relativo ao projeto). Resolução em runtime via `PROJECT_MAP_PROJECT_ROOT`.
+- **Export:** `VACUUM INTO` para copiar o banco + stamp de metadados (projeto, label, timestamp, format_version).
+- **Import:** Valida tabelas obrigatórias + schema_version >= 4. Faz backup do DB atual antes de substituir.
+- **Formato:** Arquivos `.pmap.db` no diretório `.project-map/exports/`.
+- **Compartilhamento:** Basta enviar o `.pmap.db` para o colega. Ele faz `pmap import arquivo.pmap.db` e tem toda a base de conhecimento.
+- **Schema compat:** Import recusa DBs com schema_version < 4 (pré-portabilidade).
+
 ### Valores de Enum no Schema
 - `origin`: `deterministic`, `heuristic`, `ai_generated`, `human_provided`
 - `validation_status`: `unverified`, `supported_by_code`, `supported_by_tests`, `human_confirmed`, `disputed`, `superseded`, `invalidated`
@@ -192,7 +220,9 @@ ONDBAY_PROJECT_ROOT=/path/to/project node dist/index.js
 | Tipos e interfaces | `src/shared/types.ts` |
 | Constantes e pesos | `src/shared/constants.ts` |
 | Schema SQLite | `migrations/001_initial.sql` |
-| Config example | `ondbay.config.example.json` |
+| Portable DB migration | `migrations/004_portable_db.sql` |
+| Export/Import service | `src/services/export.ts` |
+| Config example | `project-map.config.example.json` |
 | Entry point MCP | `src/index.ts` |
 | Entry point CLI | `src/cli/index.ts` |
 | README completo | `README.md` |

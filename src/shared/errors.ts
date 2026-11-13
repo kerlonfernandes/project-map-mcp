@@ -15,14 +15,14 @@
  * Base class for all Project Map errors.
  * Carries a machine-readable `code` for programmatic handling.
  */
-export class Project MapError extends Error {
+export class ProjectMapError extends Error {
   constructor(
     public readonly code: string,
     message: string,
     public readonly details?: Record<string, unknown>,
   ) {
     super(message);
-    this.name = 'Project MapError';
+    this.name = 'ProjectMapError';
   }
 }
 
@@ -31,7 +31,7 @@ export class Project MapError extends Error {
 // ──────────────────────────────────────────────────────────────────────
 
 /** Thrown when a path escapes the project root via traversal or symlink. */
-export class PathTraversalError extends Project MapError {
+export class PathTraversalError extends ProjectMapError {
   constructor(path: string) {
     super('PATH_TRAVERSAL', `Path traversal blocked: ${sanitizePath(path)}`);
     this.name = 'PathTraversalError';
@@ -39,7 +39,7 @@ export class PathTraversalError extends Project MapError {
 }
 
 /** Thrown when a symlink resolves outside the project root. */
-export class SymlinkEscapeError extends Project MapError {
+export class SymlinkEscapeError extends ProjectMapError {
   constructor(path: string) {
     super('SYMLINK_ESCAPE', `Symlink escape blocked: ${sanitizePath(path)}`);
     this.name = 'SymlinkEscapeError';
@@ -47,7 +47,7 @@ export class SymlinkEscapeError extends Project MapError {
 }
 
 /** Thrown when a file matches a blocked path pattern. */
-export class BlockedPathError extends Project MapError {
+export class BlockedPathError extends ProjectMapError {
   constructor(path: string) {
     super('BLOCKED_PATH', `Access to blocked path: ${sanitizePath(path)}`);
     this.name = 'BlockedPathError';
@@ -55,7 +55,7 @@ export class BlockedPathError extends Project MapError {
 }
 
 /** Thrown when rate limit is exceeded. */
-export class RateLimitError extends Project MapError {
+export class RateLimitError extends ProjectMapError {
   constructor(limit: number) {
     super('RATE_LIMIT', `Rate limit exceeded: ${limit} requests per minute`);
     this.name = 'RateLimitError';
@@ -67,7 +67,7 @@ export class RateLimitError extends Project MapError {
 // ──────────────────────────────────────────────────────────────────────
 
 /** Thrown when tool input fails schema validation. */
-export class ValidationError extends Project MapError {
+export class ValidationError extends ProjectMapError {
   constructor(message: string, details?: Record<string, unknown>) {
     super('VALIDATION_ERROR', message, details);
     this.name = 'ValidationError';
@@ -75,7 +75,7 @@ export class ValidationError extends Project MapError {
 }
 
 /** Thrown when a file exceeds the configured size limit. */
-export class FileTooLargeError extends Project MapError {
+export class FileTooLargeError extends ProjectMapError {
   constructor(path: string, sizeBytes: number, maxBytes: number) {
     super('FILE_TOO_LARGE', `File too large: ${sanitizePath(path)} (${sizeBytes} bytes, max ${maxBytes})`);
     this.name = 'FileTooLargeError';
@@ -87,7 +87,7 @@ export class FileTooLargeError extends Project MapError {
 // ──────────────────────────────────────────────────────────────────────
 
 /** Thrown when a requested entity does not exist. */
-export class EntityNotFoundError extends Project MapError {
+export class EntityNotFoundError extends ProjectMapError {
   constructor(identifier: string) {
     super('ENTITY_NOT_FOUND', `Entity not found: ${identifier}`);
     this.name = 'EntityNotFoundError';
@@ -95,7 +95,7 @@ export class EntityNotFoundError extends Project MapError {
 }
 
 /** Thrown when a requested knowledge record does not exist. */
-export class KnowledgeNotFoundError extends Project MapError {
+export class KnowledgeNotFoundError extends ProjectMapError {
   constructor(id: string) {
     super('KNOWLEDGE_NOT_FOUND', `Knowledge record not found: ${id}`);
     this.name = 'KnowledgeNotFoundError';
@@ -103,7 +103,7 @@ export class KnowledgeNotFoundError extends Project MapError {
 }
 
 /** Thrown when a requested work session does not exist. */
-export class SessionNotFoundError extends Project MapError {
+export class SessionNotFoundError extends ProjectMapError {
   constructor(id: string) {
     super('SESSION_NOT_FOUND', `Work session not found: ${id}`);
     this.name = 'SessionNotFoundError';
@@ -111,7 +111,7 @@ export class SessionNotFoundError extends Project MapError {
 }
 
 /** Thrown when no project is initialized in the target directory. */
-export class ProjectNotFoundError extends Project MapError {
+export class ProjectNotFoundError extends ProjectMapError {
   constructor(path: string) {
     super('PROJECT_NOT_FOUND', `No Project Map project found at: ${sanitizePath(path)}`);
     this.name = 'ProjectNotFoundError';
@@ -123,7 +123,7 @@ export class ProjectNotFoundError extends Project MapError {
 // ──────────────────────────────────────────────────────────────────────
 
 /** Thrown when a database operation fails. */
-export class DatabaseError extends Project MapError {
+export class DatabaseError extends ProjectMapError {
   constructor(message: string, details?: Record<string, unknown>) {
     super('DATABASE_ERROR', message, details);
     this.name = 'DatabaseError';
@@ -135,7 +135,7 @@ export class DatabaseError extends Project MapError {
 // ──────────────────────────────────────────────────────────────────────
 
 /** Thrown when a parser fails to process a file. */
-export class ParseError extends Project MapError {
+export class ParseError extends ProjectMapError {
   constructor(path: string, reason: string) {
     super('PARSE_ERROR', `Failed to parse ${sanitizePath(path)}: ${reason}`);
     this.name = 'ParseError';
@@ -143,7 +143,7 @@ export class ParseError extends Project MapError {
 }
 
 /** Thrown when a Git operation fails. */
-export class GitError extends Project MapError {
+export class GitError extends ProjectMapError {
   constructor(message: string) {
     super('GIT_ERROR', message);
     this.name = 'GitError';
@@ -151,10 +151,30 @@ export class GitError extends Project MapError {
 }
 
 /** Thrown when MySQL connection fails. */
-export class MySqlConnectionError extends Project MapError {
+export class MySqlConnectionError extends ProjectMapError {
   constructor(message: string) {
     super('MYSQL_CONNECTION_ERROR', `MySQL connection failed: ${message}`);
     this.name = 'MySqlConnectionError';
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Export / Import Errors
+// ──────────────────────────────────────────────────────────────────────
+
+/** Thrown when an export or import operation fails. */
+export class ExportError extends ProjectMapError {
+  constructor(message: string, details?: Record<string, unknown>) {
+    super('EXPORT_ERROR', message, details);
+    this.name = 'ExportError';
+  }
+}
+
+/** Thrown when an imported database has an incompatible schema. */
+export class IncompatibleSchemaError extends ProjectMapError {
+  constructor(expected: number, found: number) {
+    super('INCOMPATIBLE_SCHEMA', `Incompatible database schema: expected version ${expected}, found ${found}`);
+    this.name = 'IncompatibleSchemaError';
   }
 }
 

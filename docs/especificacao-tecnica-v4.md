@@ -1,4 +1,4 @@
-# Ondbay Project Intelligence MCP — Especificação Técnica v4.0
+# Project Map MCP — Especificação Técnica v4.0
 
 Nov 13, 2026 · @Kerlon Santana Fernandes
 
@@ -9,7 +9,7 @@ Nov 13, 2026 · @Kerlon Santana Fernandes
 
 ## 1. Resumo Executivo
 
-O **Ondbay Project Intelligence MCP** é um servidor Model Context Protocol que mantém uma memória técnica persistente, verificável e compartilhada de um projeto de software. Indexa estrutura de repositório, registra relacionamentos entre componentes, mantém conhecimento funcional com evidências rastreáveis e entrega contexto progressivo a clientes de IA — tudo sem executar código nem chamar LLMs.
+O **Project Map MCP** é um servidor Model Context Protocol que mantém uma memória técnica persistente, verificável e compartilhada de um projeto de software. Indexa estrutura de repositório, registra relacionamentos entre componentes, mantém conhecimento funcional com evidências rastreáveis e entrega contexto progressivo a clientes de IA — tudo sem executar código nem chamar LLMs.
 
 ### Divisão de responsabilidade
 
@@ -172,7 +172,7 @@ graph TB
 ### Estrutura de diretórios
 
 ```
-ondbay-mcp/
+project-map-mcp/
 ├── src/
 │   ├── adapter/           # MCP Adapter (JSON-RPC handler)
 │   │   ├── server.js
@@ -211,7 +211,7 @@ ondbay-mcp/
 ├── migrations/            # SQL migration files
 ├── test/
 ├── package.json
-└── ondbay.config.json     # Configuração por projeto
+└── project-map.config.json     # Configuração por projeto
 ```
 
 ## 4. Modelo de Conhecimento
@@ -1634,7 +1634,7 @@ Aplicado após o PHP Parser para arquivos em projetos Laravel.
 | `new ClassName()` | edge `instantiates` | Classe instanciada |
 | `module.exports` | Detecta ponto de entrada do módulo |  |
 
-**Resolução de módulos:** caminhos relativos (`./utils`) resolvidos para arquivo real. Pacotes npm (`express`) geram entidade `package` com edge `depends_on`. Aliases de bundler (webpack `@/`) detectados se configurado em `ondbay.config.json`.
+**Resolução de módulos:** caminhos relativos (`./utils`) resolvidos para arquivo real. Pacotes npm (`express`) geram entidade `package` com edge `depends_on`. Aliases de bundler (webpack `@/`) detectados se configurado em `project-map.config.json`.
 
 ### Express Adapter
 
@@ -1742,7 +1742,7 @@ function validatePath(requestedPath, projectRoot) {
 | `node_modules/.cache/` | Cache volátil sem valor semântico |
 | Arquivos > 2 MB | Proteção contra DoS de memória |
 
-Patterns adicionais configuráveis via `ondbay.config.json` → `security.blocked_paths`.
+Patterns adicionais configuráveis via `project-map.config.json` → `security.blocked_paths`.
 
 ### Camada 2 — Sanitização de entrada
 
@@ -1801,7 +1801,7 @@ const connectionConfig = {
 ### Modelo de permissões
 
 ```
-ondbay.config.json → security:
+project-map.config.json → security:
 {
   "security": {
     "blocked_paths": [".env*", "*.pem"],
@@ -1973,13 +1973,13 @@ Exemplo de configuração para Claude Desktop (`claude_desktop_config.json`):
 ```json
 {
   "mcpServers": {
-    "ondbay": {
+    "project-map": {
       "command": "node",
       "args": ["dist/index.js"],
-      "cwd": "/path/to/ondbay-mcp",
+      "cwd": "/path/to/project-map-mcp",
       "env": {
-        "ONDBAY_PROJECT_ROOT": "/path/to/my-project",
-        "ONDBAY_DB_PATH": "/path/to/my-project/.ondbay/knowledge.db"
+        "PROJECT_MAP_PROJECT_ROOT": "/path/to/my-project",
+        "PROJECT_MAP_DB_PATH": "/path/to/my-project/.project-map/knowledge.db"
       }
     }
   }
@@ -1992,13 +1992,13 @@ Também compatível com qualquer cliente MCP que suporte STDIO transport: Cursor
 
 ```json
 {
-  "name": "ondbay-mcp",
+  "name": "project-map-mcp",
   "version": "1.0.0",
   "description": "Project Intelligence MCP Server",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "ondbay": "dist/cli.js"
+    "project-map": "dist/cli.js"
   },
   "scripts": {
     "build": "tsc",
@@ -2030,7 +2030,7 @@ Também compatível com qualquer cliente MCP que suporte STDIO transport: Cursor
 | `get_context` tool | Depth summary/structure, sem purpose | Retorna contexto de arquivo PHP |
 | `sync` tool (full) | Scan completo do projeto | Indexa projeto de 100 arquivos em <30s |
 | `search` tool | Busca por FTS5 | Encontra entidades por nome parcial |
-| CLI básico | `ondbay init`, `ondbay sync`, `ondbay status` | Comandos funcionam standalone |
+| CLI básico | `project-map init`, `project-map sync`, `project-map status` | Comandos funcionam standalone |
 | Testes unitários | Cobertura do parser PHP e SQLite | ≥80% cobertura das camadas core |
 
 ### Fase 2 — Intelligence (Semanas 5–8)

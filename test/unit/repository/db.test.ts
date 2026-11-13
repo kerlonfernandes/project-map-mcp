@@ -57,6 +57,7 @@ describe('openDatabase', () => {
     expect(tableNames).toContain('schema_version');
     expect(tableNames).toContain('work_sessions');
     expect(tableNames).toContain('work_session_checkpoints');
+    expect(tableNames).toContain('db_metadata');
   });
 
   it('should create FTS5 virtual tables', () => {
@@ -79,7 +80,7 @@ describe('openDatabase', () => {
       .prepare('SELECT MAX(version) as v FROM schema_version')
       .get() as { v: number };
 
-    expect(version.v).toBe(3);
+    expect(version.v).toBe(4);
   });
 
   it('should be idempotent (running twice should not fail)', () => {
