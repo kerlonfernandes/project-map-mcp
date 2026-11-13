@@ -204,7 +204,7 @@ export function createMcpServer(deps: ServerDependencies): McpServer {
         line_start: z.number().optional(),
         line_end: z.number().optional(),
         excerpt: z.string().optional(),
-        source_kind: z.string(),
+        source_kind: z.string().describe('Source type: code, comment, docblock, config, migration, test, git_log, manual, schema, doc'),
       })).optional().describe('Evidence backing the assertion'),
       entity_ids: z.array(z.string()).optional().describe('Linked entity IDs'),
       knowledge_id: z.string().optional().describe('ID of existing record (for update/validate/invalidate/dispute)'),

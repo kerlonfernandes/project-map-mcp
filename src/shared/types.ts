@@ -121,6 +121,7 @@ export const SOURCE_KINDS = [
   'git_log',
   'manual',
   'schema',
+  'doc',
 ] as const;
 
 export type SourceKind = (typeof SOURCE_KINDS)[number];
