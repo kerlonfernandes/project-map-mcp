@@ -1,0 +1,51 @@
+{
+  "$schema": "./config-schema.json",
+  "project": {
+    "name": "my-project",
+    "root": "."
+  },
+  "analysis": {
+    "languages": ["php", "javascript"],
+    "frameworks": ["laravel", "express"],
+    "exclude_patterns": [
+      "node_modules/**",
+      "vendor/**",
+      "dist/**",
+      "build/**",
+      ".git/**",
+      "storage/**",
+      "public/build/**"
+    ],
+    "max_file_size_mb": 2,
+    "max_directory_depth": 20,
+    "max_files_per_sync": 500,
+    "parse_timeout_ms": 30000
+  },
+  "database": {
+    "path": ".ondbay/knowledge.db",
+    "max_size_mb": 500,
+    "cache_size_mb": 64
+  },
+  "security": {
+    "blocked_paths": [".env*", "*.pem", "*.key", "*.p12", "*.pfx"],
+    "mysql": {
+      "allow_connection": true,
+      "allowed_hosts": ["localhost", "127.0.0.1"],
+      "blocked_schemas": ["mysql", "performance_schema", "sys", "information_schema"]
+    },
+    "rate_limit": {
+      "enabled": true,
+      "max_per_minute": 60
+    }
+  },
+  "sync": {
+    "reconciliation_interval": 10,
+    "staleness_max_depth": 3
+  },
+  "context": {
+    "default_depth": "structure",
+    "default_purpose": "understand",
+    "default_token_budget": 2000,
+    "max_token_budget": 200000
+  }
+}
