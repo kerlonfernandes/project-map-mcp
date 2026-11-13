@@ -1,0 +1,1480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Project Map MCP — Persistent Technical Memory for Software Projects</title>
+  <meta name="description" content="MCP server that indexes your codebase, tracks relationships, stores knowledge with evidence, and delivers progressive context to AI clients. Powered by Tree-sitter and SQLite.">
+  <meta name="theme-color" content="#0a0a0f">
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+    :root {
+      --bg: #0a0a0f;
+      --bg-elevated: #111118;
+      --bg-card: #16161f;
+      --bg-code: #1a1a25;
+      --border: #222233;
+      --border-subtle: #1a1a2a;
+      --text: #e2e2ea;
+      --text-muted: #8888a0;
+      --text-dim: #5c5c75;
+      --accent: #7c6cff;
+      --accent-muted: #5a4dbd;
+      --accent-glow: rgba(124, 108, 255, 0.08);
+      --green: #3ddc84;
+      --green-dim: rgba(61, 220, 132, 0.12);
+      --amber: #f5a623;
+      --red: #ff5c5c;
+      --cyan: #56ccf2;
+      --radius: 10px;
+      --radius-sm: 6px;
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      --font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+      --max-w: 860px;
+      --space-xs: 0.5rem;
+      --space-sm: 0.75rem;
+      --space-md: 1.25rem;
+      --space-lg: 2rem;
+      --space-xl: 3.5rem;
+      --space-2xl: 5rem;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      font-size: 15px;
+    }
+
+    ::selection {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    a:hover { color: #9d91ff; }
+
+    /* ─── Navigation ─── */
+    .nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      background: rgba(10, 10, 15, 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .nav-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 var(--space-lg);
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 600;
+      font-size: 15px;
+      color: var(--text);
+      letter-spacing: -0.01em;
+    }
+    .nav-brand svg { flex-shrink: 0; }
+    .nav-links {
+      display: flex;
+      gap: var(--space-md);
+      list-style: none;
+    }
+    .nav-links a {
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.01em;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--text); }
+
+    .hamburger {
+      display: none;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 4px;
+    }
+
+    /* ─── Main Layout ─── */
+    main {
+      max-width: var(--max-w);
+      margin: 0 auto;
+      padding: 0 var(--space-lg);
+    }
+
+    /* ─── Hero ─── */
+    .hero {
+      padding-top: calc(56px + var(--space-2xl));
+      padding-bottom: var(--space-2xl);
+      text-align: center;
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--accent-glow);
+      border: 1px solid rgba(124, 108, 255, 0.2);
+      border-radius: 100px;
+      padding: 5px 14px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--accent);
+      margin-bottom: var(--space-md);
+      letter-spacing: 0.02em;
+    }
+    .hero h1 {
+      font-size: clamp(2rem, 5vw, 3rem);
+      font-weight: 700;
+      line-height: 1.15;
+      letter-spacing: -0.03em;
+      color: #fff;
+      margin-bottom: var(--space-md);
+    }
+    .hero h1 span { color: var(--accent); }
+    .hero p {
+      max-width: 560px;
+      margin: 0 auto var(--space-lg);
+      color: var(--text-muted);
+      font-size: 16px;
+      line-height: 1.75;
+    }
+    .hero-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 22px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+    .btn-primary:hover {
+      background: #6b5ce7;
+      color: #fff;
+      transform: translateY(-1px);
+    }
+    .btn-secondary {
+      background: var(--bg-card);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover {
+      background: var(--bg-elevated);
+      border-color: var(--text-dim);
+      color: var(--text);
+      transform: translateY(-1px);
+    }
+
+    /* ─── Feature Pills ─── */
+    .tech-stack {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: var(--space-lg);
+    }
+    .tech-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+    .tech-pill .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+
+    /* ─── Sections ─── */
+    section {
+      padding: var(--space-2xl) 0;
+    }
+    section + section {
+      border-top: 1px solid var(--border-subtle);
+    }
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--accent);
+      margin-bottom: var(--space-xs);
+    }
+    .section-title {
+      font-size: clamp(1.4rem, 3vw, 1.75rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: #fff;
+      margin-bottom: var(--space-sm);
+    }
+    .section-desc {
+      color: var(--text-muted);
+      max-width: 580px;
+      margin-bottom: var(--space-xl);
+      font-size: 15px;
+    }
+
+    /* ─── Feature Grid ─── */
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 16px;
+    }
+    .feature-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: var(--space-md);
+      transition: border-color 0.2s;
+    }
+    .feature-card:hover {
+      border-color: var(--accent-muted);
+    }
+    .feature-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      margin-bottom: 12px;
+    }
+    .feature-card h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+    .feature-card p {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* ─── Architecture ─── */
+    .arch-diagram {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: var(--space-lg);
+      overflow-x: auto;
+    }
+    .arch-layer {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 0;
+    }
+    .arch-layer + .arch-layer {
+      border-top: 1px dashed var(--border);
+    }
+    .arch-label {
+      min-width: 150px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .arch-items {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .arch-item {
+      background: var(--bg-code);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 4px 10px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .arch-arrow {
+      text-align: center;
+      padding: 4px 0;
+      color: var(--text-dim);
+      font-size: 18px;
+    }
+
+    /* ─── Installation Steps ─── */
+    .install-steps {
+      counter-reset: step;
+    }
+    .install-step {
+      position: relative;
+      padding-left: 52px;
+      margin-bottom: var(--space-lg);
+    }
+    .install-step::before {
+      counter-increment: step;
+      content: counter(step);
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--accent-glow);
+      border: 1px solid rgba(124, 108, 255, 0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent);
+      line-height: 32px;
+      text-align: center;
+    }
+    .install-step::after {
+      content: '';
+      position: absolute;
+      left: 15px;
+      top: 36px;
+      bottom: -20px;
+      width: 1px;
+      background: var(--border);
+    }
+    .install-step:last-child::after { display: none; }
+    .install-step h3 {
+      font-size: 15px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+    .install-step p {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    /* ─── Code Blocks ─── */
+    pre {
+      background: var(--bg-code);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 16px 18px;
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.65;
+      color: var(--text-muted);
+      -webkit-overflow-scrolling: touch;
+    }
+    pre code { background: none; padding: 0; border: none; }
+    code {
+      font-family: var(--font-mono);
+      font-size: 0.88em;
+      background: var(--bg-code);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: var(--cyan);
+    }
+    .code-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-bottom: none;
+      border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+      padding: 8px 14px;
+      font-size: 12px;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+    }
+    .code-header + pre {
+      border-top-left-radius: 0;
+      border-top-right-radius: 0;
+    }
+    .copy-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      border-radius: 4px;
+      padding: 3px 8px;
+      font-size: 11px;
+      cursor: pointer;
+      font-family: var(--font-sans);
+      transition: all 0.2s;
+    }
+    .copy-btn:hover {
+      border-color: var(--text-muted);
+      color: var(--text-muted);
+    }
+
+    /* ─── Comment inside code ─── */
+    .c { color: var(--text-dim); }
+    .k { color: var(--accent); }
+    .s { color: var(--green); }
+    .n { color: var(--cyan); }
+    .v { color: var(--amber); }
+
+    /* ─── Tabs ─── */
+    .tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: var(--space-md);
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .tab-btn {
+      background: none;
+      border: none;
+      padding: 10px 18px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-dim);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+      white-space: nowrap;
+      font-family: var(--font-sans);
+    }
+    .tab-btn:hover { color: var(--text-muted); }
+    .tab-btn.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ─── Tools Reference ─── */
+    .tool-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+    .tool-header {
+      padding: 16px 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: background 0.2s;
+    }
+    .tool-header:hover { background: var(--bg-elevated); }
+    .tool-name {
+      font-family: var(--font-mono);
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--green);
+    }
+    .tool-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-left: 12px;
+    }
+    .tool-chevron {
+      color: var(--text-dim);
+      transition: transform 0.2s;
+      flex-shrink: 0;
+    }
+    .tool-card.open .tool-chevron { transform: rotate(180deg); }
+    .tool-body {
+      display: none;
+      padding: 0 20px 20px;
+      border-top: 1px solid var(--border-subtle);
+    }
+    .tool-card.open .tool-body { display: block; }
+
+    /* ─── Tables ─── */
+    .table-wrap {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      margin: 12px 0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    th {
+      text-align: left;
+      padding: 10px 14px;
+      font-weight: 600;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-dim);
+      background: var(--bg-elevated);
+      border-bottom: 1px solid var(--border);
+    }
+    td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+    }
+    td code {
+      font-size: 12px;
+      color: var(--cyan);
+    }
+    tr:last-child td { border-bottom: none; }
+
+    /* ─── Callout ─── */
+    .callout {
+      background: var(--bg-card);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      padding: 14px 18px;
+      margin: 16px 0;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .callout-warn {
+      border-left-color: var(--amber);
+    }
+    .callout strong {
+      color: var(--text);
+    }
+
+    /* ─── Config JSON ─── */
+    .config-section {
+      margin-bottom: var(--space-md);
+    }
+    .config-section h4 {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .config-section p {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    /* ─── Footer ─── */
+    footer {
+      border-top: 1px solid var(--border-subtle);
+      padding: var(--space-xl) 0;
+      text-align: center;
+    }
+    footer p {
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+    footer a { color: var(--text-muted); }
+
+    /* ─── Responsive ─── */
+    @media (max-width: 768px) {
+      :root { --space-lg: 1.25rem; --space-xl: 2.5rem; --space-2xl: 3.5rem; }
+      .nav-links { display: none; }
+      .nav-links.open {
+        display: flex;
+        flex-direction: column;
+        position: absolute;
+        top: 56px;
+        left: 0;
+        right: 0;
+        background: var(--bg);
+        border-bottom: 1px solid var(--border);
+        padding: var(--space-md) var(--space-lg);
+        gap: var(--space-sm);
+      }
+      .hamburger { display: block; }
+      .feature-grid { grid-template-columns: 1fr; }
+      .arch-layer { flex-direction: column; align-items: flex-start; }
+      .arch-label { min-width: auto; }
+      .hero-actions { flex-direction: column; align-items: center; }
+      .tool-desc { display: none; }
+    }
+
+    @media (max-width: 480px) {
+      body { font-size: 14px; }
+      pre { font-size: 12px; padding: 12px 14px; }
+      .install-step { padding-left: 42px; }
+    }
+
+    /* ─── Scroll to top ─── */
+    .scroll-top {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.3s, transform 0.2s;
+      pointer-events: none;
+      z-index: 50;
+    }
+    .scroll-top.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .scroll-top:hover { transform: translateY(-2px); border-color: var(--accent); color: var(--accent); }
+  </style>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗺️</text></svg>">
+</head>
+<body>
+
+<!-- Navigation -->
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="#" class="nav-brand">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+        <polyline points="2 17 12 22 22 17"/>
+        <polyline points="2 12 12 17 22 12"/>
+      </svg>
+      Project Map MCP
+    </a>
+    <button class="hamburger" aria-label="Menu" onclick="document.querySelector('.nav-links').classList.toggle('open')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+    </button>
+    <ul class="nav-links">
+      <li><a href="#features">Features</a></li>
+      <li><a href="#architecture">Architecture</a></li>
+      <li><a href="#installation">Installation</a></li>
+      <li><a href="#setup">Setup</a></li>
+      <li><a href="#tools">Tools</a></li>
+      <li><a href="#cli">CLI</a></li>
+      <li><a href="https://github.com/kerlonfernandes/project-map-mcp" target="_blank" rel="noopener">GitHub</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+  <!-- Hero -->
+  <section class="hero" id="top">
+    <div class="hero-badge">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+      Model Context Protocol Server
+    </div>
+    <h1>Persistent technical memory<br>for <span>software projects</span></h1>
+    <p>Index your codebase, track relationships between components, store knowledge with traceable evidence, and deliver progressive context to AI clients. Powered by Tree-sitter and SQLite.</p>
+    <div class="hero-actions">
+      <a href="#installation" class="btn btn-primary">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Get Started
+      </a>
+      <a href="https://github.com/kerlonfernandes/project-map-mcp" target="_blank" rel="noopener" class="btn btn-secondary">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+        View on GitHub
+      </a>
+    </div>
+    <div class="tech-stack">
+      <span class="tech-pill"><span class="dot" style="background:var(--accent)"></span>Tree-sitter AST</span>
+      <span class="tech-pill"><span class="dot" style="background:var(--cyan)"></span>SQLite + FTS5</span>
+      <span class="tech-pill"><span class="dot" style="background:var(--green)"></span>Zero LLM Calls</span>
+      <span class="tech-pill"><span class="dot" style="background:var(--amber)"></span>No Code Execution</span>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section id="features">
+    <div class="section-label">Features</div>
+    <h2 class="section-title">Everything your AI agent needs to understand your codebase</h2>
+    <p class="section-desc">Deterministic code analysis, evidence-backed knowledge, and progressive context delivery — all from a single MCP server.</p>
+
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(124,108,255,0.1)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        </div>
+        <h3>Deterministic Parsing</h3>
+        <p>PHP, JavaScript, Python, CSS and HTML parsed via Tree-sitter AST. Same input always produces the same output.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(61,220,132,0.1)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </div>
+        <h3>Knowledge with Evidence</h3>
+        <p>Every assertion links to code, comments, docblocks, configs, or tests. 12 knowledge types with full validation lifecycle.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(86,204,242,0.1)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        </div>
+        <h3>Progressive Context</h3>
+        <p>4 depth levels and 5 purpose modes with token budgets. Returns exactly the amount of context your agent needs.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(245,166,35,0.1)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        </div>
+        <h3>Dependency Graph</h3>
+        <p>21 relationship types with weighted edges for impact analysis. Staleness propagation through BFS traversal.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(124,108,255,0.1)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        </div>
+        <h3>Framework Detection</h3>
+        <p>Laravel, Express.js, CoffeeCode and Plates adapters. Detects routes, models, middleware, events, migrations and more.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(61,220,132,0.1)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2"><path d="M4 22h14a2 2 0 002-2V7.5L14.5 2H6a2 2 0 00-2 2v4"/><polyline points="14 2 14 8 20 8"/><path d="M2 15h10"/><path d="M5 12l-3 3 3 3"/></svg>
+        </div>
+        <h3>Portable Databases</h3>
+        <p>Export and share your indexed project as a <code>.pmap.db</code> file. Teammates import it — zero re-analysis needed.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(86,204,242,0.1)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        </div>
+        <h3>Full-Text Search</h3>
+        <p>SQLite FTS5 across entities, knowledge records, and evidence. Structural and semantic search with ranked results.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(245,166,35,0.1)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <h3>Security by Default</h3>
+        <p>Path traversal protection, blocked sensitive files, prepared statements only. Never executes project code.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Architecture -->
+  <section id="architecture">
+    <div class="section-label">Architecture</div>
+    <h2 class="section-title">Clean layers, inward dependencies</h2>
+    <p class="section-desc">Dependencies always point inward. Entry points contain zero business logic. The repository layer is the only code that touches SQLite.</p>
+
+    <div class="arch-diagram">
+      <div class="arch-layer">
+        <div class="arch-label">Entry Points</div>
+        <div class="arch-items">
+          <span class="arch-item">adapter/server.ts</span>
+          <span class="arch-item">cli/index.ts</span>
+        </div>
+      </div>
+      <div class="arch-arrow">&#8595;</div>
+      <div class="arch-layer">
+        <div class="arch-label">App Services</div>
+        <div class="arch-items">
+          <span class="arch-item">context</span>
+          <span class="arch-item">search</span>
+          <span class="arch-item">graph</span>
+          <span class="arch-item">impact</span>
+          <span class="arch-item">record</span>
+          <span class="arch-item">sync</span>
+          <span class="arch-item">session</span>
+          <span class="arch-item">export</span>
+        </div>
+      </div>
+      <div class="arch-arrow">&#8595;</div>
+      <div class="arch-layer">
+        <div class="arch-label">Domain</div>
+        <div class="arch-items">
+          <span class="arch-item">knowledge.ts</span>
+          <span class="arch-item">conventions.ts</span>
+          <span class="arch-item">reconciliation.ts</span>
+        </div>
+      </div>
+      <div class="arch-arrow">&#8595;</div>
+      <div class="arch-layer">
+        <div class="arch-label">Repository</div>
+        <div class="arch-items">
+          <span class="arch-item">entities</span>
+          <span class="arch-item">evidence</span>
+          <span class="arch-item">knowledge</span>
+          <span class="arch-item">graph</span>
+          <span class="arch-item">snapshots</span>
+          <span class="arch-item">cache</span>
+          <span class="arch-item">audit</span>
+        </div>
+      </div>
+      <div class="arch-arrow">&#8595;</div>
+      <div class="arch-layer">
+        <div class="arch-label">Storage</div>
+        <div class="arch-items">
+          <span class="arch-item">SQLite + FTS5</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top: var(--space-lg)">
+      <h3 style="font-size: 15px; color: #fff; margin-bottom: 10px;">Code Analysis Pipeline</h3>
+      <div class="arch-diagram">
+        <div class="arch-layer">
+          <div class="arch-label">Orchestrator</div>
+          <div class="arch-items"><span class="arch-item">analyzer/core.ts</span></div>
+        </div>
+        <div class="arch-arrow">&#8595;</div>
+        <div class="arch-layer">
+          <div class="arch-label">Parsers</div>
+          <div class="arch-items">
+            <span class="arch-item">php.ts</span>
+            <span class="arch-item">javascript.ts</span>
+            <span class="arch-item">python.ts</span>
+          </div>
+        </div>
+        <div class="arch-arrow">&#8595;</div>
+        <div class="arch-layer">
+          <div class="arch-label">Frameworks</div>
+          <div class="arch-items">
+            <span class="arch-item">Laravel</span>
+            <span class="arch-item">Express</span>
+            <span class="arch-item">CoffeeCode</span>
+            <span class="arch-item">Plates</span>
+          </div>
+        </div>
+        <div class="arch-arrow">&#8595;</div>
+        <div class="arch-layer">
+          <div class="arch-label">Schema</div>
+          <div class="arch-items"><span class="arch-item">mysql.ts</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Installation -->
+  <section id="installation">
+    <div class="section-label">Installation</div>
+    <h2 class="section-title">Up and running in minutes</h2>
+    <p class="section-desc">Follow these steps to install Project Map MCP on your machine.</p>
+
+    <div class="callout">
+      <strong>Prerequisites:</strong> Node.js &gt;= 18.0.0 &bull; npm (comes with Node.js) &bull; C++ build toolchain for native Tree-sitter bindings.
+    </div>
+
+    <div style="margin: var(--space-md) 0">
+      <h3 style="font-size: 14px; color: var(--text); margin-bottom: 8px;">C++ Toolchain by OS:</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>OS</th><th>Command</th></tr></thead>
+          <tbody>
+            <tr><td>Debian / Ubuntu</td><td><code>sudo apt install build-essential</code></td></tr>
+            <tr><td>macOS</td><td><code>xcode-select --install</code></td></tr>
+            <tr><td>Windows</td><td>Install <a href="https://visualstudio.microsoft.com/visual-cpp-build-tools/" target="_blank" rel="noopener">Visual Studio Build Tools</a> with "Desktop development with C++"</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="install-steps">
+      <div class="install-step">
+        <h3>Clone the repository</h3>
+        <p>Get the source code from GitHub.</p>
+        <div class="code-header">bash<button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>git clone https://github.com/kerlonfernandes/project-map-mcp.git
+cd project-map-mcp</code></pre>
+      </div>
+
+      <div class="install-step">
+        <h3>Install dependencies</h3>
+        <p>This will compile native Tree-sitter bindings. The C++ toolchain is required for this step.</p>
+        <div class="code-header">bash<button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>npm install</code></pre>
+        <div class="callout callout-warn">
+          <strong>Troubleshooting:</strong> If <code>npm install</code> fails with native module errors, make sure your C++ toolchain is installed (see table above) and try again. On Windows, run from a "Developer Command Prompt" or use <code>npm install --build-from-source</code>.
+        </div>
+      </div>
+
+      <div class="install-step">
+        <h3>Build the project</h3>
+        <p>Compile TypeScript to JavaScript in the <code>dist/</code> directory.</p>
+        <div class="code-header">bash<button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>npm run build</code></pre>
+      </div>
+
+      <div class="install-step">
+        <h3>Initialize a project (optional)</h3>
+        <p>Point Project Map MCP to the codebase you want to analyze. This creates a <code>.project-map/</code> directory with a SQLite database and a <code>project-map.config.json</code> configuration file.</p>
+        <div class="code-header">bash<button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code><span class="c"># Using the CLI (if installed globally or linked via npm)</span>
+pmap init /path/to/your/project
+
+<span class="c"># Or using node directly</span>
+node dist/cli/index.js init /path/to/your/project</code></pre>
+      </div>
+
+      <div class="install-step">
+        <h3>Run the first sync</h3>
+        <p>Index the entire project. This parses all files with Tree-sitter and builds the knowledge graph.</p>
+        <div class="code-header">bash<button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>pmap sync --full
+
+<span class="c"># Or using node directly</span>
+node dist/cli/index.js sync --full</code></pre>
+      </div>
+    </div>
+
+    <div class="callout" style="margin-top:var(--space-md)">
+      <strong>What happens after init?</strong> A <code>.project-map/</code> directory is created inside your target project containing the SQLite database (<code>knowledge.db</code>). A <code>project-map.config.json</code> file is placed at the project root with sensible defaults. You can customize it — see the <a href="#configuration">Configuration</a> section below.
+    </div>
+  </section>
+
+  <!-- Setup with AI Clients -->
+  <section id="setup">
+    <div class="section-label">Setup</div>
+    <h2 class="section-title">Connect to your AI client</h2>
+    <p class="section-desc">Configure Project Map MCP as an MCP server in your preferred IDE or AI assistant.</p>
+
+    <div class="callout" style="margin-bottom:var(--space-lg)">
+      <strong>Automated setup available:</strong> Run <code>./setup.sh</code> for interactive detection of installed clients, or <code>./setup.sh --client claude-desktop --project /path/to/project</code> for a specific target. Works on macOS, Linux, and Windows (Git Bash / WSL).
+    </div>
+
+    <div class="tabs" role="tablist">
+      <button class="tab-btn active" onclick="switchTab(event, 'tab-claude-desktop')" role="tab">Claude Desktop</button>
+      <button class="tab-btn" onclick="switchTab(event, 'tab-claude-code')" role="tab">Claude Code</button>
+      <button class="tab-btn" onclick="switchTab(event, 'tab-cursor')" role="tab">Cursor</button>
+      <button class="tab-btn" onclick="switchTab(event, 'tab-windsurf')" role="tab">Windsurf</button>
+      <button class="tab-btn" onclick="switchTab(event, 'tab-other')" role="tab">Other</button>
+    </div>
+
+    <div id="tab-claude-desktop" class="tab-panel active">
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:10px">Config file locations:</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>OS</th><th>Path</th></tr></thead>
+          <tbody>
+            <tr><td>macOS</td><td><code>~/Library/Application Support/Claude/claude_desktop_config.json</code></td></tr>
+            <tr><td>Windows</td><td><code>%APPDATA%\Claude\claude_desktop_config.json</code></td></tr>
+            <tr><td>Linux</td><td><code>~/.config/Claude/claude_desktop_config.json</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="code-header">claude_desktop_config.json<button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+      <pre><code>{
+  <span class="k">"mcpServers"</span>: {
+    <span class="k">"project-map-mcp"</span>: {
+      <span class="k">"command"</span>: <span class="s">"node"</span>,
+      <span class="k">"args"</span>: [<span class="s">"/absolute/path/to/project-map-mcp/dist/index.js"</span>],
+      <span class="k">"env"</span>: {
+        <span class="k">"PROJECT_MAP_PROJECT_ROOT"</span>: <span class="s">"/absolute/path/to/your/project"</span>
+      }
+    }
+  }
+}</code></pre>
+      <div class="callout callout-warn"><strong>Important:</strong> Restart Claude Desktop after saving the config file. Both paths must be absolute.</div>
+    </div>
+
+    <div id="tab-claude-code" class="tab-panel">
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:10px">Add to your project's <code>.claude/settings.json</code> or global <code>~/.claude/settings.json</code>:</p>
+      <div class="code-header">.claude/settings.json<button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+      <pre><code>{
+  <span class="k">"mcpServers"</span>: {
+    <span class="k">"project-map-mcp"</span>: {
+      <span class="k">"command"</span>: <span class="s">"node"</span>,
+      <span class="k">"args"</span>: [<span class="s">"/absolute/path/to/project-map-mcp/dist/index.js"</span>],
+      <span class="k">"env"</span>: {
+        <span class="k">"PROJECT_MAP_PROJECT_ROOT"</span>: <span class="s">"/absolute/path/to/your/project"</span>
+      }
+    }
+  }
+}</code></pre>
+    </div>
+
+    <div id="tab-cursor" class="tab-panel">
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:10px">Add to <code>.cursor/mcp.json</code> in your project root or global settings:</p>
+      <div class="code-header">.cursor/mcp.json<button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+      <pre><code>{
+  <span class="k">"mcpServers"</span>: {
+    <span class="k">"project-map-mcp"</span>: {
+      <span class="k">"command"</span>: <span class="s">"node"</span>,
+      <span class="k">"args"</span>: [<span class="s">"/absolute/path/to/project-map-mcp/dist/index.js"</span>],
+      <span class="k">"env"</span>: {
+        <span class="k">"PROJECT_MAP_PROJECT_ROOT"</span>: <span class="s">"/absolute/path/to/your/project"</span>
+      }
+    }
+  }
+}</code></pre>
+    </div>
+
+    <div id="tab-windsurf" class="tab-panel">
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:10px">Add to <code>~/.codeium/windsurf/mcp_config.json</code>:</p>
+      <div class="code-header">mcp_config.json<button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+      <pre><code>{
+  <span class="k">"mcpServers"</span>: {
+    <span class="k">"project-map-mcp"</span>: {
+      <span class="k">"command"</span>: <span class="s">"node"</span>,
+      <span class="k">"args"</span>: [<span class="s">"/absolute/path/to/project-map-mcp/dist/index.js"</span>],
+      <span class="k">"env"</span>: {
+        <span class="k">"PROJECT_MAP_PROJECT_ROOT"</span>: <span class="s">"/absolute/path/to/your/project"</span>
+      }
+    }
+  }
+}</code></pre>
+    </div>
+
+    <div id="tab-other" class="tab-panel">
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:10px">Any MCP-compatible client that supports STDIO transport can connect to Project Map MCP.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Setting</th><th>Value</th></tr></thead>
+          <tbody>
+            <tr><td>Server binary</td><td><code>dist/index.js</code></td></tr>
+            <tr><td>Transport</td><td>STDIO (stdin/stdout JSON-RPC)</td></tr>
+            <tr><td>Environment variable</td><td><code>PROJECT_MAP_PROJECT_ROOT=/path/to/project</code></td></tr>
+            <tr><td>Optional override</td><td><code>PROJECT_MAP_DB_PATH=/custom/path/to/knowledge.db</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Configuration -->
+  <section id="configuration">
+    <div class="section-label">Configuration</div>
+    <h2 class="section-title">Customize behavior</h2>
+    <p class="section-desc">Project Map MCP uses a <code>project-map.config.json</code> file at the project root. All settings have sensible defaults.</p>
+
+    <div class="code-header">project-map.config.json<button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+    <pre><code>{
+  <span class="k">"project"</span>: {
+    <span class="k">"name"</span>: <span class="s">"my-project"</span>,
+    <span class="k">"root"</span>: <span class="s">"."</span>
+  },
+  <span class="k">"analysis"</span>: {
+    <span class="k">"languages"</span>: [<span class="s">"php"</span>, <span class="s">"javascript"</span>, <span class="s">"python"</span>, <span class="s">"css"</span>, <span class="s">"html"</span>],
+    <span class="k">"frameworks"</span>: [<span class="s">"laravel"</span>, <span class="s">"express"</span>, <span class="s">"coffeecode"</span>, <span class="s">"plates"</span>],
+    <span class="k">"exclude_patterns"</span>: [
+      <span class="s">"node_modules/**"</span>, <span class="s">"vendor/**"</span>, <span class="s">"dist/**"</span>,
+      <span class="s">"build/**"</span>, <span class="s">".git/**"</span>, <span class="s">"storage/**"</span>
+    ],
+    <span class="k">"max_file_size_mb"</span>: <span class="v">2</span>,
+    <span class="k">"max_directory_depth"</span>: <span class="v">20</span>,
+    <span class="k">"max_files_per_sync"</span>: <span class="v">500</span>,
+    <span class="k">"parse_timeout_ms"</span>: <span class="v">30000</span>
+  },
+  <span class="k">"database"</span>: {
+    <span class="k">"path"</span>: <span class="s">".project-map/knowledge.db"</span>,
+    <span class="k">"max_size_mb"</span>: <span class="v">500</span>,
+    <span class="k">"cache_size_mb"</span>: <span class="v">64</span>
+  },
+  <span class="k">"security"</span>: {
+    <span class="k">"blocked_paths"</span>: [<span class="s">".env*"</span>, <span class="s">"*.pem"</span>, <span class="s">"*.key"</span>, <span class="s">"*.p12"</span>, <span class="s">"*.pfx"</span>],
+    <span class="k">"rate_limit"</span>: { <span class="k">"enabled"</span>: <span class="v">true</span>, <span class="k">"max_per_minute"</span>: <span class="v">60</span> }
+  },
+  <span class="k">"context"</span>: {
+    <span class="k">"default_depth"</span>: <span class="s">"structure"</span>,
+    <span class="k">"default_purpose"</span>: <span class="s">"understand"</span>,
+    <span class="k">"default_token_budget"</span>: <span class="v">2000</span>,
+    <span class="k">"max_token_budget"</span>: <span class="v">200000</span>
+  }
+}</code></pre>
+
+    <h3 style="font-size:14px;color:#fff;margin-top:var(--space-lg);margin-bottom:10px">Environment Variables</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Variable</th><th>Description</th><th>Default</th></tr></thead>
+        <tbody>
+          <tr><td><code>PROJECT_MAP_PROJECT_ROOT</code></td><td>Path to the project to analyze</td><td>Required for MCP server</td></tr>
+          <tr><td><code>PROJECT_MAP_DB_PATH</code></td><td>Override database location</td><td><code>{project_root}/.project-map/knowledge.db</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- MCP Tools Reference -->
+  <section id="tools">
+    <div class="section-label">API Reference</div>
+    <h2 class="section-title">8 MCP tools at your disposal</h2>
+    <p class="section-desc">Each tool returns JSON with a <code>meta</code> field containing token usage, depth, purpose, and other metadata.</p>
+
+    <!-- get_context -->
+    <div class="tool-card open">
+      <div class="tool-header" onclick="toggleTool(this)">
+        <div><span class="tool-name">get_context</span><span class="tool-desc">Progressive context about files, classes, modules, routes</span></div>
+        <svg class="tool-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="tool-body">
+        <p style="font-size:13px;color:var(--text-muted);margin:12px 0">The core tool for understanding code. Delivers context with configurable depth, purpose, and token budgets.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>target</code></td><td>string</td><td>Yes</td><td>Path, entity name, or query</td></tr>
+              <tr><td><code>depth</code></td><td>enum</td><td>No</td><td><code>summary</code> | <code>structure</code> | <code>detail</code> | <code>full</code></td></tr>
+              <tr><td><code>purpose</code></td><td>enum</td><td>No</td><td><code>understand</code> | <code>implement</code> | <code>debug</code> | <code>review</code> | <code>plan</code></td></tr>
+              <tr><td><code>token_budget</code></td><td>number</td><td>No</td><td>Max tokens in response (default: 2000, max: 200000)</td></tr>
+              <tr><td><code>session_id</code></td><td>string</td><td>No</td><td>For delta responses across repeated queries</td></tr>
+              <tr><td><code>include</code></td><td>string[]</td><td>No</td><td><code>knowledge</code>, <code>evidence</code>, <code>edges</code>, <code>conventions</code>, <code>gaps</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <h4 style="font-size:13px;color:var(--text);margin:16px 0 8px">Purpose modes weight content differently:</h4>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Purpose</th><th>Prioritizes</th></tr></thead>
+            <tbody>
+              <tr><td><code>understand</code></td><td>Knowledge 30%, Edges 25%, Symbols 25%</td></tr>
+              <tr><td><code>implement</code></td><td>Symbols 30%, Edges 30%, Knowledge 20%</td></tr>
+              <tr><td><code>debug</code></td><td>Edges 30%, Symbols 25%, Knowledge 20%</td></tr>
+              <tr><td><code>review</code></td><td>Knowledge 35%, Gaps 25%, Edges 20%</td></tr>
+              <tr><td><code>plan</code></td><td>Edges 30%, Knowledge 25%, Symbols 20%</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- search -->
+    <div class="tool-card">
+      <div class="tool-header" onclick="toggleTool(this)">
+        <div><span class="tool-name">search</span><span class="tool-desc">Full-text and structural search with FTS5</span></div>
+        <svg class="tool-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="tool-body">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>query</code></td><td>string</td><td>Yes</td><td>Search text or structural pattern</td></tr>
+              <tr><td><code>scope</code></td><td>enum</td><td>No</td><td><code>entities</code> | <code>knowledge</code> | <code>evidence</code> | <code>all</code></td></tr>
+              <tr><td><code>filters</code></td><td>object</td><td>No</td><td>Filter by <code>entity_type</code>, <code>language</code>, <code>path_prefix</code>, <code>knowledge_type</code>, <code>validation_status</code>, <code>origin</code></td></tr>
+              <tr><td><code>limit</code></td><td>number</td><td>No</td><td>Max results (default: 20, max: 500)</td></tr>
+              <tr><td><code>token_budget</code></td><td>number</td><td>No</td><td>Max tokens (default: 1500)</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- graph -->
+    <div class="tool-card">
+      <div class="tool-header" onclick="toggleTool(this)">
+        <div><span class="tool-name">graph</span><span class="tool-desc">Navigate the dependency graph from any entity</span></div>
+        <svg class="tool-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="tool-body">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>entity_id</code></td><td>string</td><td>Yes</td><td>Starting entity UUID</td></tr>
+              <tr><td><code>direction</code></td><td>enum</td><td>No</td><td><code>incoming</code> | <code>outgoing</code> | <code>both</code></td></tr>
+              <tr><td><code>edge_types</code></td><td>string[]</td><td>No</td><td>Filter by relationship type (21 types available)</td></tr>
+              <tr><td><code>max_depth</code></td><td>number</td><td>No</td><td>Max traversal depth (default: 2, max: 10)</td></tr>
+              <tr><td><code>include_unresolved</code></td><td>boolean</td><td>No</td><td>Include unresolved/ambiguous edges</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p style="font-size:12px;color:var(--text-dim);margin-top:12px"><strong>21 edge types:</strong> imports, extends, implements, uses_trait, calls, instantiates, references, belongs_to, has_many, belongs_to_model, has_one, many_to_many, maps_to_table, handles_route, dispatches, listens_to, renders, migrates, foreign_key_to, depends_on, tests</p>
+      </div>
+    </div>
+
+    <!-- impact -->
+    <div class="tool-card">
+      <div class="tool-header" onclick="toggleTool(this)">
+        <div><span class="tool-name">impact</span><span class="tool-desc">Analyze change impact before refactoring</span></div>
+        <svg class="tool-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="tool-body">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>entity_id</code></td><td>string</td><td>Yes</td><td>Entity that will be changed</td></tr>
+              <tr><td><code>change_type</code></td><td>enum</td><td>No</td><td><code>modify</code> | <code>delete</code> | <code>rename</code></td></tr>
+              <tr><td><code>max_depth</code></td><td>number</td><td>No</td><td>Propagation depth (default: 3)</td></tr>
+              <tr><td><code>include_tests</code></td><td>boolean</td><td>No</td><td>Include affected tests (default: true)</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- record -->
+    <div class="tool-card">
+      <div class="tool-header" onclick="toggleTool(this)">
+        <div><span class="tool-name">record</span><span class="tool-desc">Create and manage evidence-backed knowledge</span></div>
+        <svg class="tool-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="tool-body">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>action</code></td><td>enum</td><td>Yes</td><td><code>create</code> | <code>update</code> | <code>validate</code> | <code>invalidate</code> | <code>dispute</code></td></tr>
+              <tr><td><code>knowledge_type</code></td><td>string</td><td>For create</td><td>One of the 12 knowledge types</td></tr>
+              <tr><td><code>subject</code></td><td>string</td><td>For create</td><td>Subject entity or area</td></tr>
+              <tr><td><code>content</code></td><td>string</td><td>For create</td><td>The assertion content</td></tr>
+              <tr><td><code>evidence</code></td><td>array</td><td>No</td><td>Array of evidence objects with path, lines, excerpt, source_kind</td></tr>
+              <tr><td><code>entity_ids</code></td><td>string[]</td><td>No</td><td>Linked entity UUIDs</td></tr>
+              <tr><td><code>knowledge_id</code></td><td>string</td><td>For update/validate/invalidate/dispute</td><td>ID of existing record</td></tr>
+              <tr><td><code>confidence</code></td><td>number</td><td>No</td><td>Confidence score (0.0 - 1.0)</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p style="font-size:12px;color:var(--text-dim);margin-top:12px"><strong>Knowledge types:</strong> business_rule, architectural_decision, data_flow, api_contract, constraint, pattern, dependency_note, security_note, performance_note, todo, explanation, convention</p>
+        <p style="font-size:12px;color:var(--text-dim);margin-top:6px"><strong>Evidence source_kind:</strong> code, comment, docblock, config, migration, test, git_log, manual, schema</p>
+      </div>
+    </div>
+
+    <!-- sync -->
+    <div class="tool-card">
+      <div class="tool-header" onclick="toggleTool(this)">
+        <div><span class="tool-name">sync</span><span class="tool-desc">Repository synchronization and file analysis</span></div>
+        <svg class="tool-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="tool-body">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>action</code></td><td>enum</td><td>Yes</td><td><code>status</code> | <code>incremental</code> | <code>full</code> | <code>analyze_file</code> | <code>analyze_schema</code></td></tr>
+              <tr><td><code>path</code></td><td>string</td><td>For analyze_file</td><td>File path to analyze</td></tr>
+              <tr><td><code>connection</code></td><td>object</td><td>For analyze_schema</td><td>MySQL connection (host, port, user, password, database)</td></tr>
+              <tr><td><code>force</code></td><td>boolean</td><td>No</td><td>Force re-analysis (default: false)</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- session -->
+    <div class="tool-card">
+      <div class="tool-header" onclick="toggleTool(this)">
+        <div><span class="tool-name">session</span><span class="tool-desc">Work session continuity across AI chats</span></div>
+        <svg class="tool-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="tool-body">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>action</code></td><td>enum</td><td>Yes</td><td><code>checkpoint</code> | <code>resume</code> | <code>list</code> | <code>close</code></td></tr>
+              <tr><td><code>session_name</code></td><td>string</td><td>For checkpoint</td><td>Human-readable session identifier</td></tr>
+              <tr><td><code>task_description</code></td><td>string</td><td>For checkpoint</td><td>What the task is about</td></tr>
+              <tr><td><code>current_status</code></td><td>string</td><td>No</td><td>Current progress</td></tr>
+              <tr><td><code>completed_steps</code></td><td>string[]</td><td>No</td><td>Steps already done</td></tr>
+              <tr><td><code>pending_steps</code></td><td>string[]</td><td>No</td><td>Steps remaining</td></tr>
+              <tr><td><code>files_involved</code></td><td>string[]</td><td>No</td><td>Files being worked on</td></tr>
+              <tr><td><code>session_id</code></td><td>string</td><td>For resume/close</td><td>Session UUID</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- export -->
+    <div class="tool-card">
+      <div class="tool-header" onclick="toggleTool(this)">
+        <div><span class="tool-name">export</span><span class="tool-desc">Portable database sharing with teammates</span></div>
+        <svg class="tool-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="tool-body">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>action</code></td><td>enum</td><td>Yes</td><td><code>export</code> | <code>import</code> | <code>list</code></td></tr>
+              <tr><td><code>label</code></td><td>string</td><td>No</td><td>Human-readable label for the export</td></tr>
+              <tr><td><code>path</code></td><td>string</td><td>For import</td><td>Path to the <code>.pmap.db</code> file</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="callout" style="margin-top:12px">
+          <strong>Sharing workflow:</strong> Sync your project &rarr; Export &rarr; Share the <code>.pmap.db</code> file &rarr; Teammate imports it &rarr; Full knowledge base, zero re-analysis.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CLI -->
+  <section id="cli">
+    <div class="section-label">CLI</div>
+    <h2 class="section-title">Command-line interface</h2>
+    <p class="section-desc">Common operations outside of MCP, using the <code>pmap</code> command.</p>
+
+    <div class="code-header">bash<button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+    <pre><code><span class="c"># Initialize a project</span>
+pmap init /path/to/project
+
+<span class="c"># Incremental sync (only changed files)</span>
+pmap sync
+
+<span class="c"># Full re-index</span>
+pmap sync --full
+
+<span class="c"># Show project status</span>
+pmap status
+
+<span class="c"># Search entities and knowledge</span>
+pmap search "PaymentService"
+
+<span class="c"># Export database for sharing</span>
+pmap export "sprint-42"
+
+<span class="c"># Import a shared database</span>
+pmap import /path/to/shared.pmap.db
+
+<span class="c"># List available exports</span>
+pmap exports
+
+<span class="c"># Help</span>
+pmap --help</code></pre>
+
+    <div class="callout" style="margin-top:var(--space-md)">
+      <strong>Without global install:</strong> Replace <code>pmap</code> with <code>node dist/cli/index.js</code> to run any command directly.
+    </div>
+  </section>
+
+  <!-- Security -->
+  <section id="security">
+    <div class="section-label">Security</div>
+    <h2 class="section-title">Security by default</h2>
+    <p class="section-desc">All repository content is treated as untrusted data. Project Map MCP never executes your code and never calls external LLMs.</p>
+
+    <div class="feature-grid" style="grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));">
+      <div class="feature-card">
+        <h3 style="font-size:13px">Path Traversal Protection</h3>
+        <p>All file paths validated against project root. Symlinks escaping root are blocked.</p>
+      </div>
+      <div class="feature-card">
+        <h3 style="font-size:13px">Sensitive Files Blocked</h3>
+        <p><code>.env*</code>, <code>*.pem</code>, <code>*.key</code>, <code>*.p12</code>, <code>*.pfx</code> are never read. Configurable.</p>
+      </div>
+      <div class="feature-card">
+        <h3 style="font-size:13px">Prepared Statements Only</h3>
+        <p>All SQL uses parameterized queries. Zero string interpolation.</p>
+      </div>
+      <div class="feature-card">
+        <h3 style="font-size:13px">Rate Limiting</h3>
+        <p>Configurable per-minute limit (default: 60 req/min) to prevent abuse.</p>
+      </div>
+      <div class="feature-card">
+        <h3 style="font-size:13px">MySQL Safety</h3>
+        <p>Connections restricted to allowed hosts. System schemas blocked. Read-only.</p>
+      </div>
+      <div class="feature-card">
+        <h3 style="font-size:13px">Full Audit Logging</h3>
+        <p>Every tool call logged with parameters, results, entities affected, and duration.</p>
+      </div>
+      <div class="feature-card">
+        <h3 style="font-size:13px">Generic Error Responses</h3>
+        <p>Internal details never leak to clients. Sensitive info stays server-side.</p>
+      </div>
+      <div class="feature-card">
+        <h3 style="font-size:13px">Deterministic Analysis</h3>
+        <p>No LLM calls, no code execution. AST parsing only. Same input, same output.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Performance -->
+  <section id="performance">
+    <div class="section-label">Performance</div>
+    <h2 class="section-title">Built for speed</h2>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Metric</th><th>Target</th></tr></thead>
+        <tbody>
+          <tr><td>Full sync (1000 files)</td><td>&lt; 2 minutes</td></tr>
+          <tr><td>Incremental sync (10 files)</td><td>&lt; 5 seconds</td></tr>
+          <tr><td><code>get_context</code> (cache hit)</td><td>&lt; 500ms</td></tr>
+          <tr><td><code>get_context</code> (cache miss)</td><td>&lt; 2 seconds</td></tr>
+          <tr><td><code>search</code></td><td>&lt; 200ms</td></tr>
+          <tr><td>SQLite size (1000 files)</td><td>&lt; 50 MB</td></tr>
+          <tr><td>Process RSS</td><td>&lt; 256 MB</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div style="max-width:var(--max-w);margin:0 auto;padding:0 var(--space-lg)">
+    <p>Project Map MCP &mdash; MIT License &copy; 2026 <a href="https://github.com/kerlonfernandes" target="_blank" rel="noopener">Kerlon Santana Fernandes</a></p>
+    <p style="margin-top:6px"><a href="https://github.com/kerlonfernandes/project-map-mcp" target="_blank" rel="noopener">GitHub</a> &nbsp;&bull;&nbsp; <a href="https://www.npmjs.com/package/project-mapper-mcp" target="_blank" rel="noopener">npm</a> &nbsp;&bull;&nbsp; <a href="https://modelcontextprotocol.io/" target="_blank" rel="noopener">MCP Protocol</a></p>
+  </div>
+</footer>
+
+<button class="scroll-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Scroll to top">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>
+</button>
+
+<script>
+function switchTab(e, tabId) {
+  const container = e.target.closest('section');
+  container.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  container.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  e.target.classList.add('active');
+  document.getElementById(tabId).classList.add('active');
+}
+
+function toggleTool(header) {
+  header.closest('.tool-card').classList.toggle('open');
+}
+
+function copyCode(btn) {
+  const code = btn.closest('.code-header').nextElementSibling.querySelector('code') ||
+               btn.closest('.code-header').nextElementSibling;
+  const text = code.textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy', 1500);
+  });
+}
+
+window.addEventListener('scroll', () => {
+  document.querySelector('.scroll-top').classList.toggle('visible', window.scrollY > 400);
+});
+
+document.querySelectorAll('.nav-links a').forEach(a => {
+  a.addEventListener('click', () => {
+    document.querySelector('.nav-links').classList.remove('open');
+  });
+});
+</script>
+</body>
+</html>
