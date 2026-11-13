@@ -150,20 +150,41 @@ describe('detectLanguage', () => {
     expect(detectLanguage('migrations/001.sql')).toBe('sql');
   });
 
+  it('should detect Python', () => {
+    expect(detectLanguage('file.py')).toBe('python');
+    expect(detectLanguage('file.pyw')).toBe('python');
+  });
+
+  it('should detect CSS and HTML', () => {
+    expect(detectLanguage('style.css')).toBe('css');
+    expect(detectLanguage('style.scss')).toBe('css');
+    expect(detectLanguage('page.html')).toBe('html');
+  });
+
   it('should return null for unknown', () => {
-    expect(detectLanguage('file.py')).toBeNull();
+    expect(detectLanguage('file.rs')).toBeNull();
+    expect(detectLanguage('file.go')).toBeNull();
   });
 });
 
 describe('isParseableFile', () => {
-  it('should return true for PHP and JS', () => {
+  it('should return true for PHP, JS, Python, CSS, and HTML', () => {
     expect(isParseableFile('file.php')).toBe(true);
     expect(isParseableFile('file.js')).toBe(true);
+    expect(isParseableFile('file.py')).toBe(true);
+    expect(isParseableFile('style.css')).toBe(true);
+    expect(isParseableFile('page.html')).toBe(true);
   });
 
   it('should return false for other files', () => {
-    expect(isParseableFile('file.py')).toBe(false);
     expect(isParseableFile('file.sql')).toBe(false);
+    expect(isParseableFile('file.rs')).toBe(false);
+  });
+
+  it('should return false for minified files', () => {
+    expect(isParseableFile('app.min.js')).toBe(false);
+    expect(isParseableFile('style.min.css')).toBe(false);
+    expect(isParseableFile('bundle.bundle.js')).toBe(false);
   });
 });
 

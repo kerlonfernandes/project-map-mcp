@@ -707,6 +707,7 @@ async function runSchemaAnalysis(
       'database/migrations/**/*.sql',
       'migrations/**/*.sql',
       'db/migrations/**/*.sql',
+      '**/migrations/**/*.sql',
     ];
 
     const migrationFiles = fg.sync(migrationPatterns, {

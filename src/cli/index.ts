@@ -82,8 +82,8 @@ async function handleInit(targetPath?: string): Promise<void> {
         root: '.',
       },
       analysis: {
-        languages: ['php', 'javascript'],
-        frameworks: ['laravel', 'express'],
+        languages: ['php', 'javascript', 'python', 'css', 'html'],
+        frameworks: ['laravel', 'express', 'coffeecode', 'plates'],
         exclude_patterns: [
           'node_modules/**', 'vendor/**', 'dist/**', 'build/**',
           '.git/**', 'storage/**', 'public/build/**',

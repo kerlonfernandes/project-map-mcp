@@ -50,6 +50,10 @@ export const ENTITY_TYPES = [
   'test',
   'factory',
   'seeder',
+  'decorator',
+  'template',
+  'stylesheet',
+  'script',
 ] as const;
 
 export type EntityType = (typeof ENTITY_TYPES)[number];
@@ -57,6 +61,9 @@ export type EntityType = (typeof ENTITY_TYPES)[number];
 export const LANGUAGES = [
   'php',
   'javascript',
+  'python',
+  'css',
+  'html',
   'sql',
   'json',
   'yaml',

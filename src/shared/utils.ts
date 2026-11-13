@@ -18,7 +18,7 @@ import {
   BlockedPathError,
   FileTooLargeError,
 } from './errors.js';
-import { DEFAULT_BLOCKED_PATTERNS, MAX_FILE_SIZE_BYTES, LANGUAGE_EXTENSIONS } from './constants.js';
+import { DEFAULT_BLOCKED_PATTERNS, MAX_FILE_SIZE_BYTES, LANGUAGE_EXTENSIONS, MINIFIED_PATTERNS } from './constants.js';
 import type { Language } from './types.js';
 
 // ──────────────────────────────────────────────────────────────────────
@@ -175,8 +175,9 @@ export function detectLanguage(filePath: string): Language | null {
 
 /** Returns true if the file extension is parseable by our analyzers. */
 export function isParseableFile(filePath: string): boolean {
+  if (isMinifiedFile(filePath)) return false;
   const lang = detectLanguage(filePath);
-  return lang === 'php' || lang === 'javascript';
+  return lang === 'php' || lang === 'javascript' || lang === 'python' || lang === 'css' || lang === 'html';
 }
 
 // ──────────────────────────────────────────────────────────────────────
@@ -204,6 +205,12 @@ export function nowISO(): string {
 // ──────────────────────────────────────────────────────────────────────
 // File Helpers
 // ──────────────────────────────────────────────────────────────────────
+
+/** Returns true if the file is a minified bundle (should be skipped). */
+export function isMinifiedFile(filePath: string): boolean {
+  const lower = filePath.toLowerCase();
+  return MINIFIED_PATTERNS.some((p) => lower.endsWith(p));
+}
 
 /** Returns true if the path points to a binary file (heuristic). */
 export function isBinaryFile(filePath: string): boolean {

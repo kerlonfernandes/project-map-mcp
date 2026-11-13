@@ -187,6 +187,13 @@ export const LANGUAGE_EXTENSIONS: Record<string, string> = {
   '.mjs': 'javascript',
   '.cjs': 'javascript',
   '.jsx': 'javascript',
+  '.py': 'python',
+  '.pyw': 'python',
+  '.css': 'css',
+  '.scss': 'css',
+  '.less': 'css',
+  '.html': 'html',
+  '.htm': 'html',
   '.sql': 'sql',
   '.json': 'json',
   '.yaml': 'yaml',
@@ -194,6 +201,14 @@ export const LANGUAGE_EXTENSIONS: Record<string, string> = {
   '.md': 'markdown',
   '.markdown': 'markdown',
 };
+
+export const MINIFIED_PATTERNS = [
+  '.min.js',
+  '.min.css',
+  '.min.mjs',
+  '.bundle.js',
+  '.bundle.css',
+];
 
 // ──────────────────────────────────────────────────────────────────────
 // Security: Blocked Paths (defaults)

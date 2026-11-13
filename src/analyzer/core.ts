@@ -15,11 +15,14 @@
 import fs from 'node:fs';
 
 import type { ProjectMapConfig, FileAnalysisResult } from '../shared/types.js';
-import { detectLanguage, isBinaryFile, validatePath, validateFileSize } from '../shared/utils.js';
+import { detectLanguage, isBinaryFile, isMinifiedFile, validatePath, validateFileSize } from '../shared/utils.js';
 import { parsePhpFile } from './parsers/php.js';
 import { parseJavaScriptFile } from './parsers/javascript.js';
+import { parsePythonFile } from './parsers/python.js';
 import { detectLaravelPatterns } from './frameworks/laravel.js';
 import { detectExpressPatterns } from './frameworks/express.js';
+import { detectCoffeeCodePatterns } from './frameworks/coffeecode.js';
+import { detectPlatesPatterns } from './frameworks/plates.js';
 
 /**
  * Analyzes a single file and returns extracted entities, edges, and evidence.
@@ -37,9 +40,13 @@ export function analyzeFile(
   config: ProjectMapConfig,
 ): FileAnalysisResult | null {
   if (isBinaryFile(relativePath)) return null;
+  if (isMinifiedFile(relativePath)) return null;
 
   const language = detectLanguage(relativePath);
-  if (!language || (language !== 'php' && language !== 'javascript')) return null;
+  if (!language) return null;
+
+  const PARSEABLE_LANGUAGES = new Set(['php', 'javascript', 'python', 'css', 'html']);
+  if (!PARSEABLE_LANGUAGES.has(language)) return null;
 
   // SECURITY: validate path is within project root
   const absolutePath = validatePath(relativePath, projectRoot, config.security.blocked_paths);
@@ -59,12 +66,41 @@ export function analyzeFile(
       if (result && config.analysis.frameworks?.includes('laravel')) {
         detectLaravelPatterns(result, content);
       }
+      if (result && config.analysis.frameworks?.includes('coffeecode')) {
+        detectCoffeeCodePatterns(result, content);
+      }
+      if (result && config.analysis.frameworks?.includes('plates')) {
+        detectPlatesPatterns(result, content);
+      }
       break;
     case 'javascript':
       result = parseJavaScriptFile(relativePath, content);
       if (result && config.analysis.frameworks?.includes('express')) {
         detectExpressPatterns(result, content);
       }
+      break;
+    case 'python':
+      result = parsePythonFile(relativePath, content);
+      break;
+    case 'css':
+    case 'html':
+      result = {
+        path: relativePath,
+        language,
+        entities: [{
+          entity_type: language === 'html' ? 'template' : 'stylesheet',
+          scope: 'file',
+          qualified_name: relativePath,
+          display_name: relativePath.split('/').pop() ?? relativePath,
+          path: relativePath,
+          line_start: 1,
+          line_end: content.split('\n').length,
+          language,
+        }],
+        edges: [],
+        evidence: [],
+        errors: [],
+      };
       break;
     default:
       return null;
