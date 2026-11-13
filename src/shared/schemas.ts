@@ -138,7 +138,7 @@ export const RecordSchema = z
 
 export const SyncSchema = z
   .object({
-    action: z.enum(['status', 'incremental', 'full', 'analyze_file', 'analyze_schema']),
+    action: z.enum(['status', 'incremental', 'full', 'analyze_file', 'analyze_schema', 'knowledge_export', 'knowledge_import']),
     path: z.string().max(MAX_TARGET_LENGTH).optional(),
     connection: z
       .object({

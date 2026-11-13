@@ -216,9 +216,9 @@ export function createMcpServer(deps: ServerDependencies): McpServer {
 
   server.tool(
     'sync',
-    'Controls repository synchronization. Actions: status (show current state), incremental (process changes), full (complete re-index), analyze_file (single file), analyze_schema (MySQL).',
+    'Controls repository synchronization. Actions: status (show current state), incremental (process changes), full (complete re-index), analyze_file (single file), analyze_schema (MySQL), knowledge_export (DB → git-friendly Markdown files), knowledge_import (Markdown files → DB).',
     {
-      action: z.enum(['status', 'incremental', 'full', 'analyze_file', 'analyze_schema']).describe('Sync operation'),
+      action: z.enum(['status', 'incremental', 'full', 'analyze_file', 'analyze_schema', 'knowledge_export', 'knowledge_import']).describe('Sync operation'),
       path: z.string().optional().describe('File path (for analyze_file)'),
       connection: z.object({
         host: z.string(),

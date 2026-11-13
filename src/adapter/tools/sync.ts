@@ -13,7 +13,7 @@ import { syncRepository } from '../../services/sync.js';
 import type { ProjectMapConfig } from '../../shared/types.js';
 
 interface SyncArgs {
-  action: 'status' | 'incremental' | 'full' | 'analyze_file' | 'analyze_schema';
+  action: 'status' | 'incremental' | 'full' | 'analyze_file' | 'analyze_schema' | 'knowledge_export' | 'knowledge_import';
   path?: string;
   connection?: {
     host: string;

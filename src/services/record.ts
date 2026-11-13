@@ -24,6 +24,12 @@ import { checkForDuplicates } from '../domain/knowledge.js';
 import { KnowledgeNotFoundError, ValidationError } from '../shared/errors.js';
 import { hashParams } from '../shared/utils.js';
 import type { ProjectMapConfig, KnowledgeType, KnowledgeOrigin, ValidationStatus, SourceKind } from '../shared/types.js';
+import {
+  writeKnowledgeFile,
+  removeKnowledgeFile,
+  getEvidenceForKnowledge,
+  getEntityNamesForKnowledge,
+} from './knowledge-files.js';
 
 interface RecordInput {
   action: 'create' | 'update' | 'validate' | 'invalidate' | 'dispute';
@@ -49,22 +55,22 @@ interface RecordInput {
 export function manageRecord(
   db: Database,
   repositoryId: string,
-  _config: ProjectMapConfig,
+  config: ProjectMapConfig,
   input: RecordInput,
 ): Record<string, unknown> {
   const startTime = Date.now();
 
   switch (input.action) {
     case 'create':
-      return handleCreate(db, repositoryId, input, startTime);
+      return handleCreate(db, repositoryId, config, input, startTime);
     case 'update':
-      return handleUpdate(db, repositoryId, input, startTime);
+      return handleUpdate(db, repositoryId, config, input, startTime);
     case 'validate':
-      return handleValidate(db, repositoryId, input, startTime);
+      return handleValidate(db, repositoryId, config, input, startTime);
     case 'invalidate':
-      return handleInvalidate(db, repositoryId, input, startTime);
+      return handleInvalidate(db, repositoryId, config, input, startTime);
     case 'dispute':
-      return handleDispute(db, repositoryId, input, startTime);
+      return handleDispute(db, repositoryId, config, input, startTime);
     default:
       throw new ValidationError(`Unknown record action: ${input.action}`);
   }
@@ -73,6 +79,7 @@ export function manageRecord(
 function handleCreate(
   db: Database,
   repositoryId: string,
+  config: ProjectMapConfig,
   input: RecordInput,
   startTime: number,
 ): Record<string, unknown> {
@@ -171,6 +178,9 @@ function handleCreate(
     duration_ms: durationMs,
   });
 
+  // Write-through to versionable knowledge file
+  writeKnowledgeFileForRecord(db, config, result.knowledgeId);
+
   return {
     knowledge_id: result.knowledgeId,
     action: 'created',
@@ -184,6 +194,7 @@ function handleCreate(
 function handleUpdate(
   db: Database,
   repositoryId: string,
+  config: ProjectMapConfig,
   input: RecordInput,
   startTime: number,
 ): Record<string, unknown> {
@@ -222,6 +233,10 @@ function handleUpdate(
     duration_ms: durationMs,
   });
 
+  // Write-through: write new version, remove old version's file
+  writeKnowledgeFileForRecord(db, config, newId);
+  removeKnowledgeFile(config.project.root, existing.knowledge_type, existing.subject, existing.id);
+
   return {
     knowledge_id: newId,
     action: 'updated',
@@ -233,6 +248,7 @@ function handleUpdate(
 function handleValidate(
   db: Database,
   _repositoryId: string,
+  config: ProjectMapConfig,
   input: RecordInput,
   startTime: number,
 ): Record<string, unknown> {
@@ -259,6 +275,8 @@ function handleValidate(
     duration_ms: durationMs,
   });
 
+  writeKnowledgeFileForRecord(db, config, input.knowledge_id);
+
   return {
     knowledge_id: input.knowledge_id,
     action: 'validated',
@@ -270,6 +288,7 @@ function handleValidate(
 function handleInvalidate(
   db: Database,
   _repositoryId: string,
+  config: ProjectMapConfig,
   input: RecordInput,
   startTime: number,
 ): Record<string, unknown> {
@@ -295,6 +314,8 @@ function handleInvalidate(
     duration_ms: durationMs,
   });
 
+  removeKnowledgeFile(config.project.root, existing.knowledge_type, existing.subject, existing.id);
+
   return {
     knowledge_id: input.knowledge_id,
     action: 'invalidated',
@@ -305,6 +326,7 @@ function handleInvalidate(
 function handleDispute(
   db: Database,
   _repositoryId: string,
+  config: ProjectMapConfig,
   input: RecordInput,
   startTime: number,
 ): Record<string, unknown> {
@@ -330,9 +352,36 @@ function handleDispute(
     duration_ms: durationMs,
   });
 
+  writeKnowledgeFileForRecord(db, config, input.knowledge_id);
+
   return {
     knowledge_id: input.knowledge_id,
     action: 'disputed',
     meta: { tokens_used: 0 },
   };
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Versionable Knowledge Write-Through
+// ──────────────────────────────────────────────────────────────────────
+
+/**
+ * Writes the current state of a knowledge record to its Markdown file.
+ * Silently skips on I/O errors to avoid breaking record operations.
+ */
+function writeKnowledgeFileForRecord(
+  db: Database,
+  config: ProjectMapConfig,
+  knowledgeId: string,
+): void {
+  try {
+    const record = findKnowledgeById(db, knowledgeId);
+    if (!record) return;
+
+    const evidence = getEvidenceForKnowledge(db, knowledgeId);
+    const entityNames = getEntityNamesForKnowledge(db, knowledgeId);
+    writeKnowledgeFile(config.project.root, record, evidence, entityNames);
+  } catch {
+    // Write-through is best-effort — DB is the runtime source of truth
+  }
 }

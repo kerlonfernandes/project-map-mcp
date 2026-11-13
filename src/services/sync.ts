@@ -34,9 +34,10 @@ import { analyzeFile } from '../analyzer/core.js';
 import { detectConventions } from '../domain/conventions.js';
 import { analyzeSchema, parseMigrationSql } from '../analyzer/mysql.js';
 import { reconcile, shouldReconcile } from '../domain/reconciliation.js';
+import { exportAllKnowledge, importAllKnowledge } from './knowledge-files.js';
 
 interface SyncInput {
-  action: 'status' | 'incremental' | 'full' | 'analyze_file' | 'analyze_schema';
+  action: 'status' | 'incremental' | 'full' | 'analyze_file' | 'analyze_schema' | 'knowledge_export' | 'knowledge_import';
   path?: string;
   connection?: {
     host: string;
@@ -69,6 +70,10 @@ export async function syncRepository(
       return analyzeSpecificFile(db, repositoryId, config, input.path!);
     case 'analyze_schema':
       return runSchemaAnalysis(db, repositoryId, config, input.connection);
+    case 'knowledge_export':
+      return runKnowledgeExport(db, repositoryId, config);
+    case 'knowledge_import':
+      return runKnowledgeImport(db, repositoryId, config);
   }
 }
 
@@ -485,6 +490,76 @@ function analyzeSpecificFile(
     edges: result.edges.length,
     evidence: result.evidence.length,
     errors: result.errors.length > 0 ? result.errors : undefined,
+    meta: { tokens_used: 0 },
+  };
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Versionable Knowledge (export/import)
+// ──────────────────────────────────────────────────────────────────────
+
+/**
+ * Exports all current knowledge records to git-friendly Markdown files.
+ * Each record becomes one `.md` file under `.project-map/knowledge/<type>/`.
+ */
+function runKnowledgeExport(
+  db: Database,
+  repositoryId: string,
+  config: ProjectMapConfig,
+): Record<string, unknown> {
+  const startTime = Date.now();
+
+  const result = exportAllKnowledge(db, repositoryId, config.project.root);
+  const durationMs = Date.now() - startTime;
+
+  logAudit(db, {
+    operation: 'knowledge_export',
+    tool_name: 'sync',
+    parameters_hash: hashParams({ action: 'knowledge_export' }),
+    result_summary: `Exported ${result.files_written} knowledge files (${result.files_skipped} unchanged)`,
+    entities_affected: result.files_written,
+    duration_ms: durationMs,
+  });
+
+  return {
+    action: 'knowledge_export',
+    ...result,
+    duration_ms: durationMs,
+    message: result.files_written > 0
+      ? `Exported ${result.files_written} knowledge file(s) to ${result.directory}. Add this directory to git for version-controlled knowledge.`
+      : 'No knowledge records to export, or all files are already up to date.',
+    meta: { tokens_used: 0 },
+  };
+}
+
+/**
+ * Imports knowledge records from Markdown files into the database.
+ * New files create records; changed files update existing records.
+ */
+function runKnowledgeImport(
+  db: Database,
+  repositoryId: string,
+  config: ProjectMapConfig,
+): Record<string, unknown> {
+  const startTime = Date.now();
+
+  const result = importAllKnowledge(db, repositoryId, config.project.root);
+  const durationMs = Date.now() - startTime;
+
+  logAudit(db, {
+    operation: 'knowledge_import',
+    tool_name: 'sync',
+    parameters_hash: hashParams({ action: 'knowledge_import' }),
+    result_summary: `Imported: ${result.records_created} created, ${result.records_updated} updated, ${result.records_unchanged} unchanged`,
+    entities_affected: result.records_created + result.records_updated,
+    duration_ms: durationMs,
+  });
+
+  return {
+    action: 'knowledge_import',
+    ...result,
+    duration_ms: durationMs,
+    message: `Import complete: ${result.records_created} created, ${result.records_updated} updated, ${result.records_unchanged} unchanged.`,
     meta: { tokens_used: 0 },
   };
 }

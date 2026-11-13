@@ -232,6 +232,9 @@ export const DEFAULT_BLOCKED_PATTERNS = [
 /** Default directory name inside the project root for database exports. */
 export const EXPORT_DIR_NAME = '.project-map/exports';
 
+/** Directory inside the project root where versionable knowledge files are stored. */
+export const KNOWLEDGE_DIR_NAME = '.project-map/knowledge';
+
 /** File extension for exported knowledge databases. */
 export const EXPORT_FILE_EXTENSION = '.pmap.db';
 
