@@ -1,12 +1,27 @@
 {
-  "name": "project-map-mcp",
+  "name": "project-mapper-mcp",
   "version": "1.0.0",
-  "description": "Project Map MCP — persistent, verifiable technical memory for software projects",
+  "description": "MCP server that maintains persistent, verifiable technical memory for software projects — indexes structure, tracks relationships, stores knowledge with evidence, and delivers progressive context to AI clients",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "pmap": "dist/cli/index.js"
+    "pmap": "dist/cli/index.js",
+    "project-mapper-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist/",
+    "migrations/",
+    "README.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kerlonfernandes/project-map-mcp.git"
+  },
+  "homepage": "https://github.com/kerlonfernandes/project-map-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/kerlonfernandes/project-map-mcp/issues"
   },
   "scripts": {
     "build": "tsc",
@@ -28,11 +43,22 @@
   },
   "keywords": [
     "mcp",
+    "mcp-server",
     "model-context-protocol",
     "code-intelligence",
     "project-analysis",
     "tree-sitter",
-    "knowledge-graph"
+    "knowledge-graph",
+    "codebase-memory",
+    "ai-agent",
+    "claude",
+    "cursor",
+    "code-context",
+    "architecture",
+    "laravel",
+    "express",
+    "php",
+    "javascript"
   ],
   "author": "Kerlon Santana Fernandes",
   "license": "MIT",
